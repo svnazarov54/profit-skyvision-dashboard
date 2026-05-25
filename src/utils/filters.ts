@@ -4,17 +4,32 @@ import type { SalesRecord } from '../types/sales';
 import { getPeriodRange, monthKeyInRange } from './dateUtils';
 import { formatPointLabel } from './formatters';
 
+export function resolvePeriodBounds(
+  filters: FilterState,
+  dateBounds: { minDate: string; maxDate: string },
+): { from: string; to: string } {
+  const { minDate, maxDate } = dateBounds;
+
+  if (filters.periodPreset === 'all' && !filters.dateFrom && !filters.dateTo) {
+    return { from: minDate, to: maxDate };
+  }
+
+  if (filters.dateFrom || filters.dateTo) {
+    return {
+      from: filters.dateFrom ?? minDate,
+      to: filters.dateTo ?? maxDate,
+    };
+  }
+
+  return getPeriodRange(filters.periodPreset, minDate, maxDate);
+}
+
 export function filterRecords(
   records: SalesRecord[],
   filters: FilterState,
   dateBounds: { minDate: string; maxDate: string },
 ): SalesRecord[] {
-  const period =
-    filters.periodPreset === 'all' && !filters.dateFrom && !filters.dateTo
-      ? { from: dateBounds.minDate, to: dateBounds.maxDate }
-      : filters.dateFrom && filters.dateTo
-        ? { from: filters.dateFrom, to: filters.dateTo }
-        : getPeriodRange(filters.periodPreset, dateBounds.minDate, dateBounds.maxDate);
+  const period = resolvePeriodBounds(filters, dateBounds);
 
   return records.filter((r) => {
     if (!monthKeyInRange(r.monthKey, period.from, period.to)) return false;
@@ -129,8 +144,5 @@ export function getEffectivePeriod(
   filters: FilterState,
   dateBounds: { minDate: string; maxDate: string },
 ): { from: string; to: string } {
-  if (filters.dateFrom && filters.dateTo) {
-    return { from: filters.dateFrom, to: filters.dateTo };
-  }
-  return getPeriodRange(filters.periodPreset, dateBounds.minDate, dateBounds.maxDate);
+  return resolvePeriodBounds(filters, dateBounds);
 }

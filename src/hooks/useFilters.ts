@@ -39,5 +39,24 @@ export function useFilters() {
     setFilters(DEFAULT_FILTERS);
   }, []);
 
-  return { filters, updateFilter, toggleArrayFilter, resetFilters, setFilters };
+  const setDateRange = useCallback(
+    (dateFrom: string | null, dateTo: string | null) => {
+      setFilters((prev) => ({
+        ...prev,
+        periodPreset: 'all',
+        dateFrom,
+        dateTo,
+      }));
+    },
+    [],
+  );
+
+  return {
+    filters,
+    updateFilter,
+    toggleArrayFilter,
+    resetFilters,
+    setFilters,
+    setDateRange,
+  };
 }

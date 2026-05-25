@@ -15,6 +15,7 @@ interface FiltersPanelProps {
   filters: FilterState;
   options: FilterOptions;
   onUpdate: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
+  onDateRangeChange: (dateFrom: string | null, dateTo: string | null) => void;
   onReset: () => void;
 }
 
@@ -50,6 +51,7 @@ export function FiltersPanel({
   filters,
   options,
   onUpdate,
+  onDateRangeChange,
   onReset,
 }: FiltersPanelProps) {
   const [linkCopied, setLinkCopied] = useState(false);
@@ -141,8 +143,9 @@ export function FiltersPanel({
                   min={options.minDate}
                   max={options.maxDate}
                   onChange={(e) => {
-                    onUpdate('dateFrom', e.target.value || null);
-                    onUpdate('periodPreset', 'all');
+                    const from = e.target.value || options.minDate;
+                    const to = filters.dateTo ?? options.maxDate;
+                    onDateRangeChange(from, to);
                   }}
                   className="w-full rounded-lg border border-[#E5E7EB] px-2 py-2 text-sm"
                 />
@@ -155,8 +158,9 @@ export function FiltersPanel({
                   min={options.minDate}
                   max={options.maxDate}
                   onChange={(e) => {
-                    onUpdate('dateTo', e.target.value || null);
-                    onUpdate('periodPreset', 'all');
+                    const to = e.target.value || options.maxDate;
+                    const from = filters.dateFrom ?? options.minDate;
+                    onDateRangeChange(from, to);
                   }}
                   className="w-full rounded-lg border border-[#E5E7EB] px-2 py-2 text-sm"
                 />

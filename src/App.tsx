@@ -43,7 +43,8 @@ function syncTabToUrl(tab: AppTab): void {
 
 function App() {
   const { state, records } = useCsvData();
-  const { filters, updateFilter, resetFilters, setFilters } = useFilters();
+  const { filters, updateFilter, resetFilters, setFilters, setDateRange } =
+    useFilters();
   const [activeTab, setActiveTab] = useState<AppTab>(() => readTabFromUrl());
   const [pivotOrder, setPivotOrder] = useState<PivotHierarchyOrder>('network-first');
   const [splitDimension, setSplitDimension] = useState<SplitChartDimension>('network');
@@ -141,6 +142,7 @@ function App() {
           filters={filters}
           options={analytics.filterOptions}
           onUpdate={updateFilter}
+          onDateRangeChange={setDateRange}
           onReset={resetFilters}
         />
 
