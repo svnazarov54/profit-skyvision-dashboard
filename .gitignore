@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+*.log
+
+# Vite / TypeScript
+*.local
+.vite/
