@@ -21,7 +21,7 @@ export function CellBarValue({
   return (
     <Tip content={tipText}>
       <div className="min-w-[84px] cursor-default">
-        <div className="mb-0.5 text-right text-xs font-medium tabular-nums text-[#111827]">
+        <div className="mb-0.5 text-right text-sm font-medium tabular-nums text-[#111827]">
           {value.toLocaleString('ru-RU')}
         </div>
         <div className="h-1 overflow-hidden rounded-full bg-[#F1F5F9]">

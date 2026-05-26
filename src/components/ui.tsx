@@ -2,8 +2,6 @@ import clsx from 'clsx';
 import { ChevronDown, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-const MAX_VISIBLE_OPTIONS = 50;
-
 interface CardProps {
   children: ReactNode;
   className?: string;
@@ -169,7 +167,7 @@ export function SearchableCheckboxList({
     const filtered = q
       ? options.filter((o) => o.toLowerCase().includes(q))
       : options;
-    return filtered.slice(0, MAX_VISIBLE_OPTIONS);
+    return filtered;
   }, [options, query]);
 
   const toggle = (value: string) => {
@@ -213,11 +211,6 @@ export function SearchableCheckboxList({
           ))
         )}
       </div>
-      {options.length > MAX_VISIBLE_OPTIONS && (
-        <p className="mt-1 text-[11px] text-[#6B7280]">
-          Показано {visibleOptions.length} из {options.length}
-        </p>
-      )}
       <SelectedChips selected={selected} onRemove={toggle} />
     </>
   );
@@ -242,7 +235,7 @@ export function PointCheckboxList({ options, selected, onChange }: PointCheckbox
     const filtered = q
       ? options.filter((o) => o.label.toLowerCase().includes(q))
       : options;
-    return filtered.slice(0, MAX_VISIBLE_OPTIONS);
+    return filtered;
   }, [options, query]);
 
   const toggle = (value: string) => {

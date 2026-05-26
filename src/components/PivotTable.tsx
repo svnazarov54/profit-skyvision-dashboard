@@ -300,7 +300,7 @@ export function PivotTable({
                         </td>
                       ))}
                       <td
-                        className="sticky right-0 z-20 whitespace-nowrap border-l border-[#F3F4F6] bg-white px-3 py-2 text-right font-semibold tabular-nums text-[#111827] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)] group-hover:bg-[#F8FAFC]"
+                        className="sticky right-0 z-20 whitespace-nowrap border-l border-[#F3F4F6] bg-white px-3 py-2 text-right text-sm font-semibold tabular-nums text-[#111827] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)] group-hover:bg-[#F8FAFC]"
                         style={{ minWidth: COL.total, width: COL.total }}
                       >
                         {formatNumber(row.total)}
@@ -327,7 +327,7 @@ export function PivotTable({
                   {months.map((m) => (
                     <td
                       key={m}
-                      className="px-2 py-2.5 text-right tabular-nums text-[#111827]"
+                      className="px-2 py-2.5 text-right text-sm tabular-nums text-[#111827]"
                       style={{ minWidth: COL.month, width: COL.month }}
                     >
                       {grandTotal.monthly[m]
@@ -336,7 +336,7 @@ export function PivotTable({
                     </td>
                   ))}
                   <td
-                    className="sticky right-0 z-20 border-l border-[#BFDBFE] bg-[#EFF6FF]/95 px-3 py-2.5 text-right tabular-nums text-[#2563EB] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)]"
+                    className="sticky right-0 z-20 border-l border-[#BFDBFE] bg-[#EFF6FF]/95 px-3 py-2.5 text-right text-sm tabular-nums text-[#2563EB] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)]"
                     style={{ minWidth: COL.total, width: COL.total }}
                   >
                     {formatNumber(grandTotal.total)}
