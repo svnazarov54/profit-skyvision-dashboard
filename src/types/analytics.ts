@@ -11,6 +11,7 @@ export interface MomChange {
 export interface KpiData {
   totalSales: number;
   momChange: MomChange;
+  yoyChange: MomChange;
   bestNetwork: {
     name: string;
     sales: number;
@@ -40,7 +41,10 @@ export interface PivotNode {
   id: string;
   label: string;
   level: PivotLevel;
+  /** Sales by month for the selected period only */
   monthly: Record<string, number>;
+  /** Sales by month without period filter — used as YoY baseline */
+  yoyMonthly: Record<string, number>;
   total: number;
   children: PivotNode[];
 }

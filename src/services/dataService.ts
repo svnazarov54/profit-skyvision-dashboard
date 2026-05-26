@@ -43,6 +43,7 @@ function normalizeRow(
   const federalSubject = getField(row, 'federalSubject') || EMPTY_VALUES.federalSubject;
   const address = getField(row, 'address') || EMPTY_VALUES.address;
   const product = getField(row, 'product') || EMPTY_VALUES.product;
+  const sku = getField(row, 'sku') || EMPTY_VALUES.sku;
   const salesCount = parseSalesCount(getField(row, 'salesCount'));
 
   if (salesCount < 0) {
@@ -65,6 +66,7 @@ function normalizeRow(
     periodStart,
     periodEnd,
     product,
+    sku,
     salesCount,
     monthKey,
     pointId,

@@ -39,6 +39,7 @@ export function filtersToSearchParams(filters: FilterState): URLSearchParams {
   for (const value of filters.federalSubjects) params.append('region', value);
   for (const value of filters.cities) params.append('city', value);
   for (const value of filters.points) params.append('point', value);
+  for (const value of filters.skus) params.append('sku', value);
 
   return params;
 }
@@ -54,6 +55,7 @@ export function searchParamsToFilters(search: string): FilterState {
     federalSubjects: params.getAll('region'),
     cities: params.getAll('city'),
     points: params.getAll('point'),
+    skus: params.getAll('sku'),
   };
 }
 
@@ -65,7 +67,8 @@ export function isDefaultFilters(filters: FilterState): boolean {
     filters.networks.length === 0 &&
     filters.federalSubjects.length === 0 &&
     filters.cities.length === 0 &&
-    filters.points.length === 0
+    filters.points.length === 0 &&
+    filters.skus.length === 0
   );
 }
 

@@ -75,14 +75,14 @@ export function FiltersPanel({
   };
 
   return (
-    <div className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[#111827]">Фильтры</h2>
-        <div className="flex items-center gap-3">
+        <h2 className="text-lg font-bold text-[#111827] md:text-xl">Фильтры</h2>
+        <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={copyShareLink}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#2563EB] hover:underline"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2563EB] hover:underline md:text-base"
           >
             {linkCopied ? (
               <>
@@ -99,14 +99,26 @@ export function FiltersPanel({
           <button
             type="button"
             onClick={onReset}
-            className="text-xs font-medium text-[#6B7280] hover:text-[#111827] hover:underline"
+            className="text-sm font-semibold text-[#6B7280] hover:text-[#111827] hover:underline md:text-base"
           >
             Сбросить все
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <DropdownFilter
+          label="SKU (препарат)"
+          summary={getFilterSummary(filters.skus, 'Все SKU')}
+        >
+          <SearchableCheckboxList
+            options={options.skus}
+            selected={filters.skus}
+            onChange={(v) => onUpdate('skus', v)}
+            placeholder="Поиск SKU"
+          />
+        </DropdownFilter>
+
         <DropdownFilter
           label="Период"
           summary={getDateSummary(filters, options)}
@@ -231,6 +243,7 @@ export function FiltersPanel({
             onChange={(v) => onUpdate('points', v)}
           />
         </DropdownFilter>
+
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ export interface FilterState {
   cities: string[];
   federalSubjects: string[];
   points: string[];
+  skus: string[];
 }
 
 export interface FilterOptions {
@@ -21,6 +22,7 @@ export interface FilterOptions {
   cities: string[];
   federalSubjects: string[];
   points: { id: string; label: string }[];
+  skus: string[];
   minDate: string;
   maxDate: string;
 }
@@ -33,6 +35,7 @@ export const DEFAULT_FILTERS: FilterState = {
   cities: [],
   federalSubjects: [],
   points: [],
+  skus: [],
 };
 
 export const PERIOD_PRESET_LABELS: Record<PeriodPreset, string> = {
@@ -44,6 +47,6 @@ export const PERIOD_PRESET_LABELS: Record<PeriodPreset, string> = {
   previous_year: 'Предыдущий год',
 };
 
-export type PivotHierarchyOrder = 'network-first' | 'region-first';
+export type PivotHierarchyOrder = 'region-only' | 'network-first' | 'region-first';
 
 export type SplitChartDimension = 'network' | 'region';

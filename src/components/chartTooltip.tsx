@@ -1,4 +1,11 @@
 import type { ReactNode } from 'react';
+import { formatNumber } from '../utils/formatters';
+
+/** Used only to decide left/right flip near chart edge */
+const SPLIT_TOOLTIP_EST_WIDTH = 260;
+const SPLIT_TOOLTIP_GAP = 8;
+/** Vertical offset from the hovered point — small gap below, near the cursor */
+const SPLIT_TOOLTIP_OFFSET_Y = 10;
 
 interface ChartTooltipProps {
   title?: string;
@@ -49,3 +56,75 @@ export const CHART_TOOLTIP_PROPS = {
   cursor: { fill: 'rgba(37, 99, 235, 0.06)' },
   wrapperStyle: { outline: 'none', zIndex: 50 },
 } as const;
+
+export interface SplitTooltipPayloadItem {
+  name?: string | number;
+  value?: number | string;
+  color?: string;
+  dataKey?: string | number;
+}
+
+interface SplitTooltipProps {
+  active?: boolean;
+  payload?: SplitTooltipPayloadItem[];
+  label?: string | number;
+  coordinate?: { x?: number; y?: number };
+  viewBox?: { x?: number; y?: number; width?: number; height?: number };
+  hiddenSeries: Set<string>;
+}
+
+/** Shared tooltip for split dynamics — all series at hovered month, flips near chart edges */
+export function SplitDynamicsTooltip({
+  active,
+  payload,
+  label,
+  coordinate,
+  viewBox,
+  hiddenSeries,
+}: SplitTooltipProps) {
+  if (!active || !payload?.length || !coordinate) return null;
+
+  const items = payload
+    .filter((p) => p.name != null && !hiddenSeries.has(String(p.name)))
+    .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0));
+
+  if (!items.length) return null;
+
+  const vb = {
+    x: viewBox?.x ?? 0,
+    y: viewBox?.y ?? 0,
+    width: viewBox?.width ?? 400,
+    height: viewBox?.height ?? 300,
+  };
+  const cx = coordinate.x ?? 0;
+  const chartRight = vb.x + vb.width;
+
+  // Right of point by default; flip so the box sits immediately to the left of the point
+  const placeLeft = cx + SPLIT_TOOLTIP_GAP + SPLIT_TOOLTIP_EST_WIDTH > chartRight - 4;
+  const translateX = placeLeft
+    ? `calc(-100% - ${SPLIT_TOOLTIP_GAP}px)`
+    : `${SPLIT_TOOLTIP_GAP}px`;
+  const translateY = `${SPLIT_TOOLTIP_OFFSET_Y}px`;
+
+  return (
+    <div
+      className="pointer-events-none w-max min-w-[200px] max-w-[min(320px,calc(100vw-2rem))]"
+      style={{
+        transform: `translate(${translateX}, ${translateY})`,
+      }}
+    >
+      <ChartTooltipPanel title={String(label)}>
+        <div className="space-y-1">
+          {items.map((p) => (
+            <ChartTooltipRow
+              key={String(p.dataKey ?? p.name)}
+              label={String(p.name)}
+              value={`${formatNumber(Number(p.value ?? 0))} шт.`}
+              color={String(p.color ?? '#2563EB')}
+            />
+          ))}
+        </div>
+      </ChartTooltipPanel>
+    </div>
+  );
+}

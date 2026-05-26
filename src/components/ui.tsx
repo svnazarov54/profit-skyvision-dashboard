@@ -70,8 +70,8 @@ export function DropdownFilter({
         className="flex w-full items-center justify-between gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-left text-sm transition hover:border-[#2563EB]"
       >
         <span className="min-w-0">
-          <span className="block text-xs font-medium text-[#6B7280]">{label}</span>
-          <span className="block truncate text-[#111827]">{summary}</span>
+          <span className="block text-sm font-semibold text-[#374151]">{label}</span>
+          <span className="block truncate text-sm text-[#111827]">{summary}</span>
         </span>
         <ChevronDown
           className={clsx('h-4 w-4 shrink-0 text-[#6B7280] transition', open && 'rotate-180')}

@@ -13,7 +13,11 @@ import type { SplitSeries } from '../types/analytics';
 import { formatMonthShort } from '../utils/dateUtils';
 import { formatNumber } from '../utils/formatters';
 import { getSplitColor } from '../utils/pivotTable';
-import { CHART_TOOLTIP_PROPS, ChartTooltipPanel, ChartTooltipRow } from './chartTooltip';
+import {
+  CHART_TOOLTIP_PROPS,
+  SplitDynamicsTooltip,
+  type SplitTooltipPayloadItem,
+} from './chartTooltip';
 import { Tip } from './Tooltip';
 import { Card } from './ui';
 
@@ -129,7 +133,7 @@ export function SplitDynamicsChart({
             })}
           </div>
           <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <LineChart data={chartData} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B7280' }} />
               <YAxis
@@ -138,25 +142,23 @@ export function SplitDynamicsChart({
               />
               <Tooltip
                 {...CHART_TOOLTIP_PROPS}
-                content={({ active, payload, label }) => {
-                  if (!active || !payload?.length) return null;
-                  const items = payload
-                    .filter((p) => p.value !== undefined && Number(p.value) > 0)
-                    .sort((a, b) => Number(b.value) - Number(a.value));
-
-                  return (
-                    <ChartTooltipPanel title={String(label)}>
-                      {items.map((p) => (
-                        <ChartTooltipRow
-                          key={String(p.dataKey)}
-                          label={String(p.name)}
-                          value={`${formatNumber(Number(p.value))} шт.`}
-                          color={String(p.color)}
-                        />
-                      ))}
-                    </ChartTooltipPanel>
-                  );
+                shared
+                offset={0}
+                allowEscapeViewBox={{ x: true, y: true }}
+                wrapperStyle={{
+                  ...CHART_TOOLTIP_PROPS.wrapperStyle,
+                  pointerEvents: 'none',
                 }}
+                content={({ active, payload, label, coordinate, viewBox }) => (
+                  <SplitDynamicsTooltip
+                    active={active}
+                    payload={payload as SplitTooltipPayloadItem[] | undefined}
+                    label={label}
+                    coordinate={coordinate}
+                    viewBox={viewBox}
+                    hiddenSeries={hidden}
+                  />
+                )}
               />
               {series.map((s, i) =>
                 hidden.has(s.name) ? null : (

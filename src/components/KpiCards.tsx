@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { Building2, Globe2, Store, TrendingDown, TrendingUp } from 'lucide-react';
-import type { KpiData } from '../types/analytics';
+import { Building2, Globe2, Store } from 'lucide-react';
+import type { KpiData, MomChange } from '../types/analytics';
 import { THRESHOLDS } from '../constants/thresholds';
 import { formatNumber, formatPercent, formatSales } from '../utils/formatters';
 import { Hint, Tip } from './Tooltip';
@@ -35,7 +35,7 @@ function KpiCard({ title, value, subtitle, icon, accent = 'neutral', hint, value
     <Card className="!p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6B7280]">
+          <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#374151]">
             {title}
             {hint && <Hint text={hint} />}
           </p>
@@ -57,6 +57,49 @@ function KpiCard({ title, value, subtitle, icon, accent = 'neutral', hint, value
         </div>
       </div>
     </Card>
+  );
+}
+
+function changeAccent(changePct: number | null, hasBase: boolean) {
+  if (!hasBase) return 'neutral' as const;
+  if ((changePct ?? 0) > 0) return 'success' as const;
+  if ((changePct ?? 0) < THRESHOLDS.anomalyCritical) return 'danger' as const;
+  if ((changePct ?? 0) < 0) return 'warning' as const;
+  return 'neutral' as const;
+}
+
+function ChangeMetric({
+  title,
+  change,
+  hint,
+}: {
+  title: string;
+  change: MomChange;
+  hint: string;
+}) {
+  const accent = changeAccent(change.changePct, change.hasBase);
+  const accentColors = {
+    neutral: 'text-[#111827]',
+    success: 'text-[#16A34A]',
+    danger: 'text-[#DC2626]',
+    warning: 'text-[#F97316]',
+  };
+
+  const subtitle = change.hasBase
+    ? `${change.changeAbs >= 0 ? '+' : ''}${formatNumber(change.changeAbs)} шт. · ${change.previousMonthLabel} → ${change.lastMonthLabel}`
+    : 'Нет базы для сравнения';
+
+  return (
+    <div className="min-w-0 flex-1 border-[#E5E7EB] pl-4 first:border-0 first:pl-0 sm:border-l">
+      <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#374151]">
+        {title}
+        <Hint text={hint} />
+      </p>
+      <p className={`mt-1 truncate text-xl font-bold md:text-2xl ${accentColors[accent]}`}>
+        {change.hasBase && change.changePct !== null ? formatPercent(change.changePct) : '—'}
+      </p>
+      <p className="mt-1 truncate text-xs text-[#6B7280]">{subtitle}</p>
+    </div>
   );
 }
 
@@ -82,22 +125,6 @@ export function KpiCards({ kpi, hasData }: KpiCardsProps) {
     );
   }
 
-  const { momChange } = kpi;
-  const changeAccent =
-    !momChange.hasBase
-      ? 'neutral'
-      : (momChange.changePct ?? 0) > 0
-        ? 'success'
-        : (momChange.changePct ?? 0) < THRESHOLDS.anomalyCritical
-          ? 'danger'
-          : (momChange.changePct ?? 0) < 0
-            ? 'warning'
-            : 'neutral';
-
-  const momSubtitle = momChange.hasBase
-    ? `${momChange.changeAbs >= 0 ? '+' : ''}${formatNumber(momChange.changeAbs)} шт. · ${momChange.previousMonthLabel} → ${momChange.lastMonthLabel}`
-    : 'Нет базы для сравнения';
-
   const bestNetworkSubtitle = kpi.bestNetwork
     ? `${formatSales(kpi.bestNetwork.sales)} · ${kpi.bestNetwork.sharePct.toFixed(1)}%`
     : undefined;
@@ -108,30 +135,29 @@ export function KpiCards({ kpi, hasData }: KpiCardsProps) {
 
   return (
     <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard
-        title="Общие продажи"
-        value={formatSales(kpi.totalSales)}
-        hint="Сумма продаж за выбранный период и фильтры"
-        icon={<Store className="h-4 w-4" />}
-      />
-      <KpiCard
-        title="Изменение MoM"
-        value={
-          momChange.hasBase && momChange.changePct !== null
-            ? formatPercent(momChange.changePct)
-            : '—'
-        }
-        subtitle={momSubtitle}
-        hint="Сравнение последнего месяца периода с предыдущим"
-        icon={
-          (momChange.changePct ?? 0) < 0 ? (
-            <TrendingDown className="h-4 w-4" />
-          ) : (
-            <TrendingUp className="h-4 w-4" />
-          )
-        }
-        accent={changeAccent}
-      />
+      <Card className="!p-4 sm:col-span-2 xl:col-span-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="min-w-0 flex-1 sm:max-w-[38%]">
+            <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#374151]">
+              Общие продажи
+              <Hint text="Сумма продаж за выбранный период и фильтры" />
+            </p>
+            <p className="mt-1 text-xl font-bold text-[#111827] md:text-2xl">
+              {formatSales(kpi.totalSales)}
+            </p>
+          </div>
+          <ChangeMetric
+            title="Изменение MoM"
+            change={kpi.momChange}
+            hint="Сравнение последнего месяца периода с предыдущим"
+          />
+          <ChangeMetric
+            title="Изменение YoY"
+            change={kpi.yoyChange}
+            hint="Сравнение последнего месяца периода с тем же месяцем год назад"
+          />
+        </div>
+      </Card>
       <KpiCard
         title="Лучшая аптечная сеть"
         value={kpi.bestNetwork?.name ?? '—'}

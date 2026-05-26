@@ -41,6 +41,7 @@ export function filterRecords(
     )
       return false;
     if (filters.points.length && !filters.points.includes(r.pointId)) return false;
+    if (filters.skus.length && !filters.skus.includes(r.sku)) return false;
     return true;
   });
 }
@@ -58,6 +59,7 @@ export function filterRecordsWithoutPeriod(
     )
       return false;
     if (filters.points.length && !filters.points.includes(r.pointId)) return false;
+    if (filters.skus.length && !filters.skus.includes(r.sku)) return false;
     return true;
   });
 }
@@ -87,6 +89,9 @@ export function getFilterOptions(
     if (exclude !== 'points' && filters.points.length) {
       filtered = filtered.filter((r) => filters.points.includes(r.pointId));
     }
+    if (exclude !== 'skus' && filters.skus.length) {
+      filtered = filtered.filter((r) => filters.skus.includes(r.sku));
+    }
 
     return filtered;
   };
@@ -97,6 +102,7 @@ export function getFilterOptions(
   const cityRecords = cascade('cities');
   const subjectRecords = cascade('federalSubjects');
   const pointRecords = cascade('points');
+  const skuRecords = cascade('skus');
 
   const pointMap = new Map<string, string>();
   for (const r of pointRecords) {
@@ -114,6 +120,7 @@ export function getFilterOptions(
     cities: unique(cityRecords.map((r) => r.city)),
     federalSubjects: unique(subjectRecords.map((r) => r.federalSubject)),
     points,
+    skus: unique(skuRecords.map((r) => r.sku)),
     minDate,
     maxDate,
   };
@@ -135,6 +142,9 @@ export function getActiveFilterSummary(
   filters.federalSubjects.forEach((s) => parts.push(s));
   if (filters.points.length) {
     parts.push(`${filters.points.length} точек`);
+  }
+  if (filters.skus.length) {
+    parts.push(filters.skus.length === 1 ? filters.skus[0] : `${filters.skus.length} SKU`);
   }
 
   return parts;

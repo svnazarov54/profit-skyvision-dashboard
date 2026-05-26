@@ -7,6 +7,7 @@ export interface ColumnMapping {
   periodStart: string;
   periodEnd: string;
   product: string;
+  sku: string;
   salesCount: string;
 }
 
@@ -19,6 +20,7 @@ export interface SalesRecord {
   periodStart: Date;
   periodEnd: Date | null;
   product: string;
+  sku: string;
   salesCount: number;
   monthKey: string;
   pointId: string;

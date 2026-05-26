@@ -8,13 +8,16 @@ export const COLUMN_MAPPING: ColumnMapping = {
   address: 'pharmacy_address',
   periodStart: 'period_start',
   periodEnd: 'period_end',
-  product: 'product_raw',
+  product: 'brand',
+  sku: 'sku',
   salesCount: 'quantity',
 };
 
 export const FALLBACK_MAPPING: Partial<Record<keyof ColumnMapping, string[]>> = {
   network: ['pharmacy_network'],
   periodStart: ['month_year'],
+  product: ['product_raw'],
+  sku: ['product_raw'],
   salesCount: ['sales_count'],
 };
 
@@ -34,4 +37,5 @@ export const EMPTY_VALUES = {
   federalSubject: 'Не указан регион',
   address: 'Не указан адрес',
   product: 'Не указан продукт',
+  sku: 'Не указан SKU',
 } as const;

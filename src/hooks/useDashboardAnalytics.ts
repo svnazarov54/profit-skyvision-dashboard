@@ -18,6 +18,7 @@ import {
   aggregateSubjects,
   buildPivotTable,
   calcMomChange,
+  calcYoyChange,
   enrichMonthlyWithYoy,
 } from '../utils/pivotTable';
 import {
@@ -30,7 +31,7 @@ import {
 export function useDashboardAnalytics(
   records: SalesRecord[],
   filters: FilterState,
-  pivotOrder: PivotHierarchyOrder = 'network-first',
+  pivotOrder: PivotHierarchyOrder = 'region-only',
 ): DashboardAnalytics & { filterOptions: ReturnType<typeof getFilterOptions>; hasData: boolean } {
   return useMemo(() => {
     const filterOptions = getFilterOptions(records, filters);
@@ -52,17 +53,18 @@ export function useDashboardAnalytics(
     const monthlySales = enrichMonthlyWithYoy(monthlyRaw, allMonthlyMap);
     const avgMonthlySales = calcAvgMonthly(monthlyRaw);
 
-    const momChange = period.to
-      ? calcMomChange(withoutPeriod, period.to)
-      : {
-          changeAbs: 0,
-          changePct: null,
-          hasBase: false,
-          lastMonthLabel: null,
-          previousMonthLabel: null,
-        };
+    const emptyChange = {
+      changeAbs: 0,
+      changePct: null,
+      hasBase: false,
+      lastMonthLabel: null,
+      previousMonthLabel: null,
+    };
 
-    const kpi = calcKpi(current, momChange);
+    const momChange = period.to ? calcMomChange(withoutPeriod, period.to) : emptyChange;
+    const yoyChange = period.to ? calcYoyChange(withoutPeriod, period.to) : emptyChange;
+
+    const kpi = calcKpi(current, momChange, yoyChange);
     const networkSales = aggregateNetworks(current, previous, totalSales);
     const regionSales = aggregateSubjects(current, previous, totalSales);
     const pointMetrics = buildPointMetrics(current, previous, totalSales);
@@ -73,7 +75,12 @@ export function useDashboardAnalytics(
 
     const splitByNetwork = aggregateSplitSeries(current, 'network');
     const splitByRegion = aggregateSplitSeries(current, 'region');
-    const { months: pivotMonths, tree: pivotTree } = buildPivotTable(current, pivotOrder);
+    const { months: pivotMonths, tree: pivotTree } = buildPivotTable(
+      current,
+      pivotOrder,
+      undefined,
+      withoutPeriod,
+    );
 
     return {
       kpi,

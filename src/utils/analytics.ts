@@ -199,6 +199,7 @@ export function buildPointMetrics(
 export function calcKpi(
   current: SalesRecord[],
   momChange: MomChange,
+  yoyChange: MomChange,
 ): KpiData {
   const totalSales = sumSales(current);
 
@@ -233,6 +234,7 @@ export function calcKpi(
   return {
     totalSales,
     momChange,
+    yoyChange,
     bestNetwork,
     bestRegion,
   };

@@ -1,37 +1,31 @@
 import { Tip } from './Tooltip';
 
-export function CellBarValue({
-  value,
-  monthTotal,
-  monthLabel,
-}: {
-  value: number;
-  monthTotal: number;
-  monthLabel?: string;
-}) {
+export function PivotValueCell({ value }: { value: number }) {
   if (!value) {
-    return <span className="text-[#D1D5DB]">—</span>;
+    return <span className="block text-right text-sm tabular-nums text-[#D1D5DB]">—</span>;
   }
-
-  const share = monthTotal > 0 ? (value / monthTotal) * 100 : 0;
-  const tipText = monthLabel
-    ? `${monthLabel}: ${value.toLocaleString('ru-RU')} шт. · ${share.toFixed(1)}% от суммы за месяц`
-    : `${value.toLocaleString('ru-RU')} шт.`;
-
   return (
-    <Tip content={tipText}>
-      <div className="min-w-[84px] cursor-default">
-        <div className="mb-0.5 text-right text-sm font-medium tabular-nums text-[#111827]">
-          {value.toLocaleString('ru-RU')}
-        </div>
-        <div className="h-1 overflow-hidden rounded-full bg-[#F1F5F9]">
-          <div
-            className="h-full rounded-full bg-[#2563EB]/50"
-            style={{ width: `${Math.max(share, share > 0 ? 2 : 0)}%` }}
-          />
-        </div>
-      </div>
-    </Tip>
+    <span className="block text-right text-sm font-medium tabular-nums text-[#111827]">
+      {value.toLocaleString('ru-RU')}
+    </span>
+  );
+}
+
+export function PivotPctCell({ pct }: { pct: number | null }) {
+  if (pct === null) {
+    return <span className="block text-right text-xs tabular-nums text-[#D1D5DB]">—</span>;
+  }
+  const positive = pct >= 0;
+  return (
+    <span
+      className={`block text-right text-xs font-medium tabular-nums ${
+        positive ? 'text-[#16A34A]' : 'text-[#DC2626]'
+      }`}
+      title={`${positive ? '+' : ''}${pct.toFixed(1)}%`}
+    >
+      {positive ? '+' : ''}
+      {pct.toFixed(1)}%
+    </span>
   );
 }
 

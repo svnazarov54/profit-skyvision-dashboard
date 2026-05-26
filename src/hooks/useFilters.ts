@@ -23,7 +23,7 @@ export function useFilters() {
   }, []);
 
   const toggleArrayFilter = useCallback(
-    (key: 'networks' | 'cities' | 'federalSubjects' | 'points', value: string) => {
+    (key: 'networks' | 'cities' | 'federalSubjects' | 'points' | 'skus', value: string) => {
       setFilters((prev) => {
         const arr = prev[key];
         const next = arr.includes(value)

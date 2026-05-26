@@ -1,3 +1,4 @@
+import { Lightbulb } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AppTabs, type AppTab } from './components/AppTabs';
 import { DashboardHeader } from './components/DashboardHeader';
@@ -7,7 +8,6 @@ import { SalesTrendChart } from './components/SalesTrendChart';
 import { NetworkComparisonChart } from './components/NetworkComparisonChart';
 import { RegionSalesChart } from './components/RegionSalesChart';
 import { SplitDynamicsChart } from './components/SplitDynamicsChart';
-import { TopPointsPanel } from './components/TopPointsPanel';
 import { PivotTable } from './components/PivotTable';
 import { LoadingState } from './components/LoadingState';
 import { ErrorState } from './components/ErrorState';
@@ -46,7 +46,7 @@ function App() {
   const { filters, updateFilter, resetFilters, setFilters, setDateRange } =
     useFilters();
   const [activeTab, setActiveTab] = useState<AppTab>(() => readTabFromUrl());
-  const [pivotOrder, setPivotOrder] = useState<PivotHierarchyOrder>('network-first');
+  const [pivotOrder, setPivotOrder] = useState<PivotHierarchyOrder>('region-only');
   const [splitDimension, setSplitDimension] = useState<SplitChartDimension>('network');
   const [pivotExpanded, setPivotExpanded] = useState<Set<string>>(new Set());
 
@@ -138,13 +138,24 @@ function App() {
 
         <AppTabs active={activeTab} onChange={handleTabChange} />
 
-        <FiltersPanel
-          filters={filters}
-          options={analytics.filterOptions}
-          onUpdate={updateFilter}
-          onDateRangeChange={setDateRange}
-          onReset={resetFilters}
-        />
+        <p className="mb-4 flex items-start gap-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 text-sm text-[#1E40AF] md:text-base">
+          <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-[#F59E0B]" aria-hidden />
+          <span>
+          Внизу страницы —{' '}
+          <span className="font-semibold">сводная таблица продаж</span> с детализацией по
+          регионам, городам и аптекам. Прокрутите вниз, чтобы открыть её.
+          </span>
+        </p>
+
+        <div className="sticky top-0 z-40 -mx-4 mb-6 border-b border-[#E5E7EB]/80 bg-[#F8FAFC]/95 px-4 py-3 backdrop-blur-md md:-mx-6 md:px-6">
+          <FiltersPanel
+            filters={filters}
+            options={analytics.filterOptions}
+            onUpdate={updateFilter}
+            onDateRangeChange={setDateRange}
+            onReset={resetFilters}
+          />
+        </div>
 
         {showNoFilterData ? (
           <EmptyState />
@@ -179,10 +190,6 @@ function App() {
             <div className="mb-6 grid gap-4 lg:grid-cols-2">
               <NetworkComparisonChart data={analytics.networkSales} />
               <RegionSalesChart data={analytics.regionSales} />
-            </div>
-
-            <div className="mb-6">
-              <TopPointsPanel topPoints={analytics.topPoints} />
             </div>
 
             <PivotTable

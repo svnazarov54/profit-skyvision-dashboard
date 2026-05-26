@@ -12,7 +12,7 @@ export function DashboardHeader({
   return (
     <header className="mb-6 flex items-center justify-between gap-4">
       <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">
-        Аналитика продаж аптечных сетей
+        Аналитика продаж Скайвижн
       </h1>
       {onExport && (
         <button
