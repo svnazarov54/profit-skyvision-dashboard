@@ -24,17 +24,11 @@ function validateColumns(headers: string[]): DataLoadError | null {
   return null;
 }
 
-function normalizeRow(
-  row: Record<string, string>,
-  index: number,
-): SalesRecord | null {
+function normalizeRow(row: Record<string, string>): SalesRecord | null {
   const periodStartRaw = getField(row, 'periodStart');
   const periodStart = parseDate(periodStartRaw);
 
-  if (!periodStart) {
-    console.warn(`[CSV] Строка ${index + 1}: некорректная дата period_start "${periodStartRaw}"`);
-    return null;
-  }
+  if (!periodStart) return null;
 
   const network = getField(row, 'network') || EMPTY_VALUES.network;
   const city = getField(row, 'city') || EMPTY_VALUES.city;
@@ -45,10 +39,6 @@ function normalizeRow(
   const product = getField(row, 'product') || EMPTY_VALUES.product;
   const sku = getField(row, 'sku') || EMPTY_VALUES.sku;
   const salesCount = parseSalesCount(getField(row, 'salesCount'));
-
-  if (salesCount < 0) {
-    console.warn(`[CSV] Строка ${index + 1}: отрицательное значение quantity ${salesCount}`);
-  }
 
   const periodEndRaw = getField(row, 'periodEnd');
   const periodEnd = periodEndRaw ? parseDate(periodEndRaw) : null;
@@ -76,6 +66,8 @@ function normalizeRow(
 export interface LoadResult {
   records: SalesRecord[];
   rowCount: number;
+  minDate: string;
+  maxDate: string;
 }
 
 export async function loadCsvData(path = CSV_PATH): Promise<LoadResult> {
@@ -110,17 +102,23 @@ export async function loadCsvData(path = CSV_PATH): Promise<LoadResult> {
         }
 
         const records: SalesRecord[] = [];
-        results.data.forEach((row, index) => {
-          const normalized = normalizeRow(row, index);
-          if (normalized) records.push(normalized);
-        });
+        let minDate = '';
+        let maxDate = '';
+
+        for (let index = 0; index < results.data.length; index++) {
+          const normalized = normalizeRow(results.data[index]);
+          if (!normalized) continue;
+          records.push(normalized);
+          if (!minDate || normalized.monthKey < minDate) minDate = normalized.monthKey;
+          if (!maxDate || normalized.monthKey > maxDate) maxDate = normalized.monthKey;
+        }
 
         if (!records.length) {
           reject({ type: 'empty_csv' as DataLoadError });
           return;
         }
 
-        resolve({ records, rowCount: results.data.length });
+        resolve({ records, rowCount: results.data.length, minDate, maxDate });
       },
       error: () => {
         reject({ type: 'parse_error' as DataLoadError });

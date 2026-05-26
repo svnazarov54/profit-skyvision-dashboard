@@ -1,13 +1,11 @@
-import { useMemo } from 'react';
+import { useDeferredValue, useMemo } from 'react';
 import type { DashboardAnalytics } from '../types/analytics';
 import type { FilterState, PivotHierarchyOrder } from '../types/filters';
 import type { SalesRecord } from '../types/sales';
-import { THRESHOLDS } from '../constants/thresholds';
 import {
   aggregateMonthly,
   aggregateNetworks,
   aggregateByKey,
-  buildPointMetrics,
   calcAvgMonthly,
   calcKpi,
   splitByPeriod,
@@ -26,23 +24,26 @@ import {
   filterRecordsWithoutPeriod,
   getEffectivePeriod,
   getFilterOptions,
+  type DateBounds,
 } from '../utils/filters';
 
 export function useDashboardAnalytics(
   records: SalesRecord[],
   filters: FilterState,
+  dateBounds: DateBounds,
   pivotOrder: PivotHierarchyOrder = 'region-only',
 ): DashboardAnalytics & { filterOptions: ReturnType<typeof getFilterOptions>; hasData: boolean } {
-  return useMemo(() => {
-    const filterOptions = getFilterOptions(records, filters);
-    const dateBounds = {
-      minDate: filterOptions.minDate,
-      maxDate: filterOptions.maxDate,
-    };
+  const deferredFilters = useDeferredValue(filters);
 
-    const filtered = filterRecords(records, filters, dateBounds);
-    const withoutPeriod = filterRecordsWithoutPeriod(records, filters);
-    const period = getEffectivePeriod(filters, dateBounds);
+  const filterOptions = useMemo(
+    () => getFilterOptions(records, deferredFilters, dateBounds),
+    [records, deferredFilters, dateBounds],
+  );
+
+  const core = useMemo(() => {
+    const filtered = filterRecords(records, deferredFilters, dateBounds);
+    const withoutPeriod = filterRecordsWithoutPeriod(records, deferredFilters);
+    const period = getEffectivePeriod(deferredFilters, dateBounds);
     const { current, previous } = splitByPeriod(filtered, period);
 
     const totalSales = sumSales(current);
@@ -67,20 +68,8 @@ export function useDashboardAnalytics(
     const kpi = calcKpi(current, momChange, yoyChange);
     const networkSales = aggregateNetworks(current, previous, totalSales);
     const regionSales = aggregateSubjects(current, previous, totalSales);
-    const pointMetrics = buildPointMetrics(current, previous, totalSales);
-
-    const topPoints = [...pointMetrics]
-      .sort((a, b) => b.sales - a.sales)
-      .slice(0, THRESHOLDS.topPointsCount);
-
     const splitByNetwork = aggregateSplitSeries(current, 'network');
     const splitByRegion = aggregateSplitSeries(current, 'region');
-    const { months: pivotMonths, tree: pivotTree } = buildPivotTable(
-      current,
-      pivotOrder,
-      undefined,
-      withoutPeriod,
-    );
 
     return {
       kpi,
@@ -88,18 +77,31 @@ export function useDashboardAnalytics(
       avgMonthlySales,
       networkSales,
       regionSales,
-      topPoints,
+      topPoints: [],
       splitByNetwork,
       splitByRegion,
-      pivotMonths,
-      pivotTree,
       currentRecords: current,
-      dateRange: dateBounds.minDate
-        ? { from: dateBounds.minDate, to: dateBounds.maxDate }
-        : null,
+      withoutPeriod,
+      dateRange: dateBounds.minDate ? { from: dateBounds.minDate, to: dateBounds.maxDate } : null,
       filteredRowCount: filtered.length,
-      filterOptions,
       hasData,
     };
-  }, [records, filters, pivotOrder]);
+  }, [records, deferredFilters, dateBounds]);
+
+  const { pivotMonths, pivotTree } = useMemo(() => {
+    if (!core.hasData) {
+      return { pivotMonths: [] as string[], pivotTree: [] };
+    }
+    const built = buildPivotTable(core.currentRecords, pivotOrder, undefined, core.withoutPeriod);
+    return { pivotMonths: built.months, pivotTree: built.tree };
+  }, [core.currentRecords, core.withoutPeriod, core.hasData, pivotOrder]);
+
+  const { withoutPeriod: _yoySource, ...analytics } = core;
+
+  return {
+    ...analytics,
+    pivotMonths,
+    pivotTree,
+    filterOptions,
+  };
 }

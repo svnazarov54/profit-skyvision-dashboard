@@ -42,7 +42,7 @@ function syncTabToUrl(tab: AppTab): void {
 }
 
 function App() {
-  const { state, records } = useCsvData();
+  const { state, records, dateBounds } = useCsvData();
   const { filters, updateFilter, resetFilters, setFilters, setDateRange } =
     useFilters();
   const [activeTab, setActiveTab] = useState<AppTab>(() => readTabFromUrl());
@@ -50,7 +50,7 @@ function App() {
   const [splitDimension, setSplitDimension] = useState<SplitChartDimension>('network');
   const [pivotExpanded, setPivotExpanded] = useState<Set<string>>(new Set());
 
-  const analytics = useDashboardAnalytics(records, filters, pivotOrder);
+  const analytics = useDashboardAnalytics(records, filters, dateBounds, pivotOrder);
 
   useEffect(() => {
     syncTabToUrl(activeTab);
@@ -66,7 +66,8 @@ function App() {
 
   useEffect(() => {
     if (!records.length) return;
-    const { minDate, maxDate } = analytics.filterOptions;
+    const { minDate, maxDate } = dateBounds;
+    if (!minDate || !maxDate) return;
     if (filters.periodPreset === 'all' || (filters.dateFrom && filters.dateTo)) return;
 
     const range = getPeriodRange(filters.periodPreset, minDate, maxDate);
@@ -77,11 +78,11 @@ function App() {
     }));
   }, [
     records.length,
+    dateBounds.minDate,
+    dateBounds.maxDate,
     filters.periodPreset,
     filters.dateFrom,
     filters.dateTo,
-    analytics.filterOptions.minDate,
-    analytics.filterOptions.maxDate,
     setFilters,
   ]);
 

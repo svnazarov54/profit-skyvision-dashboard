@@ -267,30 +267,35 @@ function buildYoyBaselineMap(
   return map;
 }
 
-function recordsMatchingPath(
-  source: SalesRecord[],
-  pathLevels: PivotLevel[],
-  pathKeys: string[],
-): SalesRecord[] {
-  return source.filter((r) =>
-    pathKeys.every((key, i) => LEVEL_GETTERS[pathLevels[i]].key(r) === key),
-  );
+function groupYoyByKey(
+  scopedYoy: SalesRecord[] | undefined,
+  level: PivotLevel,
+): Map<string, SalesRecord[]> | undefined {
+  if (!scopedYoy?.length) return undefined;
+
+  const getter = LEVEL_GETTERS[level];
+  const byKey = new Map<string, SalesRecord[]>();
+  for (const r of scopedYoy) {
+    const key = getter.key(r);
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(r);
+  }
+  return byKey;
 }
 
 function buildPivotLevel(
   records: SalesRecord[],
   levels: PivotLevel[],
   pathPrefix: string,
-  yoyRecords: SalesRecord[] | undefined,
+  scopedYoy: SalesRecord[] | undefined,
   displayMonths: string[],
-  pathLevels: PivotLevel[] = [],
-  pathKeys: string[] = [],
 ): PivotNode[] {
   if (!levels.length || !records.length) return [];
 
   const level = levels[0];
   const getter = LEVEL_GETTERS[level];
   const groups = new Map<string, SalesRecord[]>();
+  const yoyByKey = groupYoyByKey(scopedYoy, level);
 
   for (const r of records) {
     const key = getter.key(r);
@@ -300,15 +305,11 @@ function buildPivotLevel(
 
   return [...groups.entries()]
     .map(([key, groupRecords]) => {
-      const nextPathLevels = [...pathLevels, level];
-      const nextPathKeys = [...pathKeys, key];
-      const groupYoy = yoyRecords?.length
-        ? recordsMatchingPath(yoyRecords, nextPathLevels, nextPathKeys)
-        : undefined;
+      const branchYoy = yoyByKey?.get(key);
       const monthly = buildMonthlyMap(groupRecords);
       const yoyMonthly =
-        groupYoy?.length && displayMonths.length
-          ? buildYoyBaselineMap(groupYoy, displayMonths)
+        branchYoy?.length && displayMonths.length
+          ? buildYoyBaselineMap(branchYoy, displayMonths)
           : {};
       const total = sumSales(groupRecords);
       const sample = groupRecords[0];
@@ -325,10 +326,8 @@ function buildPivotLevel(
           groupRecords,
           levels.slice(1),
           id,
-          yoyRecords,
+          branchYoy,
           displayMonths,
-          nextPathLevels,
-          nextPathKeys,
         ),
       };
     })
@@ -341,11 +340,11 @@ export function buildPivotTable(
   selectedLevels?: PivotLevel[],
   yoyRecords?: SalesRecord[],
 ): { months: string[]; tree: PivotNode[] } {
-  const months = [...new Set(records.map((r) => r.monthKey))].sort();
+  const monthSet = new Set<string>();
+  for (const r of records) monthSet.add(r.monthKey);
+  const months = [...monthSet].sort();
   const levels = getHierarchyLevels(order, selectedLevels);
-  const tree = levels.length
-    ? buildPivotLevel(records, levels, 'root', yoyRecords, months)
-    : [];
+  const tree = levels.length ? buildPivotLevel(records, levels, 'root', yoyRecords, months) : [];
   return { months, tree };
 }
 

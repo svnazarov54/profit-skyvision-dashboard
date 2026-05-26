@@ -5,10 +5,23 @@ import {
   type LoadResult,
 } from '../services/dataService';
 import type { DataLoadError, DataLoadState, SalesRecord } from '../types/sales';
+import type { DateBounds } from '../utils/filters';
+
+export interface CsvDataset {
+  records: SalesRecord[];
+  dateBounds: DateBounds;
+  rowCount: number;
+}
+
+const EMPTY_BOUNDS: DateBounds = { minDate: '', maxDate: '' };
 
 export function useCsvData() {
   const [state, setState] = useState<DataLoadState>({ status: 'loading' });
-  const [records, setRecords] = useState<SalesRecord[]>([]);
+  const [dataset, setDataset] = useState<CsvDataset>({
+    records: [],
+    dateBounds: EMPTY_BOUNDS,
+    rowCount: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -16,7 +29,11 @@ export function useCsvData() {
     loadCsvData()
       .then((result: LoadResult) => {
         if (cancelled) return;
-        setRecords(result.records);
+        setDataset({
+          records: result.records,
+          dateBounds: { minDate: result.minDate, maxDate: result.maxDate },
+          rowCount: result.rowCount,
+        });
         setState({
           status: 'success',
           rowCount: result.rowCount,
@@ -40,5 +57,5 @@ export function useCsvData() {
     };
   }, []);
 
-  return { state, records };
+  return { state, records: dataset.records, dateBounds: dataset.dateBounds };
 }
