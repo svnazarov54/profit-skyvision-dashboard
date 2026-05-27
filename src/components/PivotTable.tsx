@@ -288,6 +288,33 @@ export function PivotTable({
                 </tr>
               </thead>
               <tbody>
+                <tr className="border-b-2 border-[#2563EB]/20 bg-[#EFF6FF]/50 font-semibold">
+                  <td
+                    className="sticky z-20 bg-[#EFF6FF]/95 px-3 py-2.5 text-[#111827]"
+                    style={{ left: STICKY.name, minWidth: COL.name, width: COL.name }}
+                  >
+                    Итого по выборке
+                  </td>
+                  <td
+                    className="sticky z-20 border-r-2 border-[#E5E7EB] bg-[#EFF6FF]/95 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.06)]"
+                    style={{ left: STICKY.trend, minWidth: COL.trend, width: COL.trend }}
+                  />
+                  {months.map((m) => (
+                    <MonthMetricCells
+                      key={`total-${m}`}
+                      monthly={grandTotal.monthly}
+                      yoyMonthly={grandTotal.yoyMonthly}
+                      monthKey={m}
+                      months={months}
+                    />
+                  ))}
+                  <td
+                    className="sticky right-0 z-20 border-l border-[#BFDBFE] bg-[#EFF6FF]/95 px-3 py-2.5 text-right text-sm tabular-nums text-[#2563EB] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)]"
+                    style={{ minWidth: COL.total, width: COL.total }}
+                  >
+                    {formatNumber(grandTotal.total)}
+                  </td>
+                </tr>
                 {rows.map((row) => {
                   const hasChildren = row.children.length > 0;
                   const isExpanded = expanded.has(row.id);
@@ -352,33 +379,6 @@ export function PivotTable({
                     </tr>
                   );
                 })}
-                <tr className="border-t-2 border-[#2563EB]/20 bg-[#EFF6FF]/50 font-semibold">
-                  <td
-                    className="sticky z-20 bg-[#EFF6FF]/95 px-3 py-2.5 text-[#111827]"
-                    style={{ left: STICKY.name, minWidth: COL.name, width: COL.name }}
-                  >
-                    Итого по выборке
-                  </td>
-                  <td
-                    className="sticky z-20 border-r-2 border-[#E5E7EB] bg-[#EFF6FF]/95 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.06)]"
-                    style={{ left: STICKY.trend, minWidth: COL.trend, width: COL.trend }}
-                  />
-                  {months.map((m) => (
-                    <MonthMetricCells
-                      key={m}
-                      monthly={grandTotal.monthly}
-                      yoyMonthly={grandTotal.yoyMonthly}
-                      monthKey={m}
-                      months={months}
-                    />
-                  ))}
-                  <td
-                    className="sticky right-0 z-20 border-l border-[#BFDBFE] bg-[#EFF6FF]/95 px-3 py-2.5 text-right text-sm tabular-nums text-[#2563EB] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.06)]"
-                    style={{ minWidth: COL.total, width: COL.total }}
-                  >
-                    {formatNumber(grandTotal.total)}
-                  </td>
-                </tr>
               </tbody>
             </table>
           </div>
