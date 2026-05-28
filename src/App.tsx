@@ -18,6 +18,7 @@ import { useDashboardAnalytics } from './hooks/useDashboardAnalytics';
 import type { PivotHierarchyOrder, SplitChartDimension } from './types/filters';
 import { getPeriodRange } from './utils/dateUtils';
 import { exportPivotToExcel } from './utils/exportExcel';
+import { getOrderedPivotLevels } from './utils/pivotTable';
 
 const SpreadsheetPivot = lazy(() =>
   import('./components/SpreadsheetPivot').then((m) => ({ default: m.SpreadsheetPivot })),
@@ -133,7 +134,11 @@ function App() {
       <div className="mx-auto max-w-[1800px] px-4 py-6 md:px-6">
         <DashboardHeader
           onExport={() =>
-            exportPivotToExcel(analytics.pivotTree, analytics.pivotMonths)
+            exportPivotToExcel(
+              analytics.pivotTree,
+              analytics.pivotMonths,
+              getOrderedPivotLevels(pivotOrder),
+            )
           }
         />
 

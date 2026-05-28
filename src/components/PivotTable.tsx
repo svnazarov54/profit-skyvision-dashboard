@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, Download } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PivotHierarchyOrder } from '../types/filters';
-import type { PivotNode } from '../types/analytics';
+import type { PivotLevel, PivotNode } from '../types/analytics';
 import { formatMonthLabel } from '../utils/dateUtils';
 import { exportPivotToExcel } from '../utils/exportExcel';
 import { formatNumber } from '../utils/formatters';
@@ -10,6 +10,8 @@ import {
   calcMonthYoyPct,
   computeGrandTotal,
   flattenPivotRowsSorted,
+  getOrderedPivotLevels,
+  PIVOT_LEVEL_LABELS,
   pivotMonthSortKey,
   type PivotMonthMetric,
   type PivotSortDir,
@@ -115,6 +117,17 @@ export function PivotTable({
   const [sortKey, setSortKey] = useState<PivotSortKey>('total');
   const [sortDir, setSortDir] = useState<PivotSortDir>('desc');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const orderedLevels = useMemo(() => getOrderedPivotLevels(order), [order]);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportLevels, setExportLevels] = useState<PivotLevel[]>(() => [...orderedLevels]);
+
+  // Keep selection compatible with current hierarchy order.
+  useEffect(() => {
+    setExportLevels((prev) => {
+      const next = orderedLevels.filter((l) => prev.includes(l));
+      return next.length > 0 ? next : [orderedLevels[0]];
+    });
+  }, [orderedLevels]);
 
   const toggleExpand = (id: string) => {
     const next = new Set(expanded);
@@ -167,7 +180,16 @@ export function PivotTable({
   const stickyBg = (isHeader = false) =>
     isHeader ? 'bg-[#F8FAFC]' : 'bg-white group-hover:bg-[#F8FAFC]';
 
-  const handleExport = () => exportPivotToExcel(tree, months);
+  const activeExportLevels = useMemo(() => {
+    const picked = orderedLevels.filter((l) => exportLevels.includes(l));
+    return picked.length > 0 ? picked : [orderedLevels[0]];
+  }, [orderedLevels, exportLevels]);
+
+  const handleExport = () => setExportOpen(true);
+  const runExport = () => {
+    exportPivotToExcel(tree, months, activeExportLevels);
+    setExportOpen(false);
+  };
 
   const tableMinWidth = FIXED_WIDTH + months.length * MONTH_GROUP_WIDTH + COL.total;
 
@@ -384,6 +406,103 @@ export function PivotTable({
           </div>
         )}
       </Card>
+      {exportOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Экспорт в Excel"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setExportOpen(false);
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-lg font-semibold text-[#111827]">Экспорт в Excel</div>
+                <div className="mt-0.5 text-sm text-[#6B7280]">
+                  Выберите, какие уровни иерархии попадут в выгрузку.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExportOpen(false)}
+                className="rounded-lg p-1.5 text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]"
+                aria-label="Закрыть"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[#E5E7EB]">
+              {orderedLevels.map((level) => {
+                const checked = exportLevels.includes(level);
+                const canUncheck = exportLevels.length > 1;
+                return (
+                  <label
+                    key={level}
+                    className="flex cursor-pointer items-center gap-3 border-b border-[#F3F4F6] px-4 py-3 text-sm last:border-b-0 hover:bg-[#F8FAFC]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={checked && !canUncheck}
+                      onChange={() => {
+                        setExportLevels((prev) => {
+                          const has = prev.includes(level);
+                          if (has) {
+                            const next = prev.filter((l) => l !== level);
+                            return next.length > 0 ? next : prev;
+                          }
+                          return [...prev, level];
+                        });
+                      }}
+                    />
+                    <span className="font-medium text-[#111827]">{PIVOT_LEVEL_LABELS[level]}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExportLevels([...orderedLevels])}
+                  className="text-sm font-medium text-[#2563EB] hover:underline"
+                >
+                  Выбрать всё
+                </button>
+                <span className="text-[#E5E7EB]">|</span>
+                <button
+                  type="button"
+                  onClick={() => setExportLevels([orderedLevels[0]])}
+                  className="text-sm font-medium text-[#6B7280] hover:underline"
+                >
+                  Оставить только первый
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExportOpen(false)}
+                  className="rounded-lg border border-[#E5E7EB] px-3 py-2 text-sm font-medium text-[#374151] hover:border-[#9CA3AF]"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={runExport}
+                  className="rounded-lg bg-[#2563EB] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
+                >
+                  Скачать Excel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="h-[40vh]" aria-hidden="true" />
     </>
   );
