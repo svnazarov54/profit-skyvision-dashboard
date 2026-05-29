@@ -1,13 +1,13 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, Download } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PivotHierarchyOrder } from '../types/filters';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import type { PivotHierarchyOrder, TimeGrouping } from '../types/filters';
 import type { PivotLevel, PivotNode } from '../types/analytics';
-import { formatMonthLabel } from '../utils/dateUtils';
 import { exportPivotToExcel } from '../utils/exportExcel';
 import { formatNumber } from '../utils/formatters';
+import { formatPeriodLabel, getPeriodComparisonLabel } from '../utils/periodGrouping';
 import {
-  calcMonthMomPct,
-  calcMonthYoyPct,
+  calcPeriodSequentialPct,
+  calcPeriodYoyPct,
   computeGrandTotal,
   flattenPivotRowsSorted,
   getOrderedPivotLevels,
@@ -24,6 +24,7 @@ import { Card } from './ui';
 interface PivotTableProps {
   tree: PivotNode[];
   months: string[];
+  timeGrouping: TimeGrouping;
   order: PivotHierarchyOrder;
   onOrderChange: (order: PivotHierarchyOrder) => void;
   expanded: Set<string>;
@@ -52,7 +53,9 @@ const COL = {
   total: 96,
 } as const;
 
-const MONTH_GROUP_WIDTH = COL.subValue + COL.subMom + COL.subYoy;
+function periodGroupWidth(showSequential: boolean): number {
+  return COL.subValue + (showSequential ? COL.subMom : 0) + COL.subYoy;
+}
 
 const STICKY = {
   name: 0,
@@ -61,26 +64,38 @@ const STICKY = {
 
 const FIXED_WIDTH = COL.name + COL.trend;
 
-const METRIC_HEADERS: { metric: PivotMonthMetric; label: string }[] = [
-  { metric: 'value', label: 'Знач.' },
-  { metric: 'mom', label: 'MoM' },
-  { metric: 'yoy', label: 'YoY' },
-];
+function metricHeaders(timeGrouping: TimeGrouping): { metric: PivotMonthMetric; label: string }[] {
+  const seq = getPeriodComparisonLabel(timeGrouping);
+  const headers: { metric: PivotMonthMetric; label: string }[] = [
+    { metric: 'value', label: 'Знач.' },
+  ];
+  if (timeGrouping !== 'year') {
+    headers.push({ metric: 'mom', label: seq });
+  }
+  headers.push({ metric: 'yoy', label: 'YoY' });
+  return headers;
+}
 
-function MonthMetricCells({
+function PeriodMetricCells({
   monthly,
   yoyMonthly,
-  monthKey,
-  months,
+  periodKey,
+  periods,
+  timeGrouping,
 }: {
   monthly: Record<string, number>;
   yoyMonthly: Record<string, number>;
-  monthKey: string;
-  months: string[];
+  periodKey: string;
+  periods: string[];
+  timeGrouping: TimeGrouping;
 }) {
-  const value = monthly[monthKey] ?? 0;
-  const mom = calcMonthMomPct(monthly, monthKey, months);
-  const yoy = calcMonthYoyPct(monthly, yoyMonthly, monthKey);
+  const value = monthly[periodKey] ?? 0;
+  const sequential =
+    timeGrouping !== 'year'
+      ? calcPeriodSequentialPct(monthly, periodKey, periods)
+      : null;
+  const yoy = calcPeriodYoyPct(monthly, yoyMonthly, periodKey, timeGrouping);
+  const showSequential = timeGrouping !== 'year';
 
   return (
     <>
@@ -90,12 +105,14 @@ function MonthMetricCells({
       >
         <PivotValueCell value={value} />
       </td>
-      <td
-        className="px-1.5 py-2 align-middle"
-        style={{ minWidth: COL.subMom, width: COL.subMom }}
-      >
-        <PivotPctCell pct={mom} />
-      </td>
+      {showSequential && (
+        <td
+          className="px-1.5 py-2 align-middle"
+          style={{ minWidth: COL.subMom, width: COL.subMom }}
+        >
+          <PivotPctCell pct={sequential} />
+        </td>
+      )}
       <td
         className="border-r border-[#E5E7EB] px-1.5 py-2 align-middle"
         style={{ minWidth: COL.subYoy, width: COL.subYoy }}
@@ -106,9 +123,10 @@ function MonthMetricCells({
   );
 }
 
-export function PivotTable({
+export const PivotTable = memo(function PivotTable({
   tree,
   months,
+  timeGrouping,
   order,
   onOrderChange,
   expanded,
@@ -117,6 +135,10 @@ export function PivotTable({
   const [sortKey, setSortKey] = useState<PivotSortKey>('total');
   const [sortDir, setSortDir] = useState<PivotSortDir>('desc');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hScrollRef = useRef<HTMLDivElement>(null);
+  const metricHeadersList = useMemo(() => metricHeaders(timeGrouping), [timeGrouping]);
+  const showSequential = timeGrouping !== 'year';
+  const monthGroupWidth = periodGroupWidth(showSequential);
   const orderedLevels = useMemo(() => getOrderedPivotLevels(order), [order]);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportLevels, setExportLevels] = useState<PivotLevel[]>(() => [...orderedLevels]);
@@ -153,8 +175,8 @@ export function PivotTable({
   const collapseAll = () => onExpandedChange(new Set());
 
   const rows = useMemo(
-    () => flattenPivotRowsSorted(tree, expanded, sortKey, sortDir, months),
-    [tree, expanded, sortKey, sortDir, months],
+    () => flattenPivotRowsSorted(tree, expanded, sortKey, sortDir, months, 0, timeGrouping),
+    [tree, expanded, sortKey, sortDir, months, timeGrouping],
   );
 
   const grandTotal = useMemo(() => computeGrandTotal(tree, months), [tree, months]);
@@ -187,11 +209,35 @@ export function PivotTable({
 
   const handleExport = () => setExportOpen(true);
   const runExport = () => {
-    exportPivotToExcel(tree, months, activeExportLevels);
+    exportPivotToExcel(tree, months, activeExportLevels, timeGrouping);
     setExportOpen(false);
   };
 
-  const tableMinWidth = FIXED_WIDTH + months.length * MONTH_GROUP_WIDTH + COL.total;
+  const tableMinWidth = FIXED_WIDTH + months.length * monthGroupWidth + COL.total;
+
+  useEffect(() => {
+    const tableScroll = scrollRef.current;
+    const barScroll = hScrollRef.current;
+    if (!tableScroll || !barScroll) return;
+
+    let syncing = false;
+    const sync = (source: HTMLDivElement, target: HTMLDivElement) => {
+      if (syncing) return;
+      syncing = true;
+      target.scrollLeft = source.scrollLeft;
+      syncing = false;
+    };
+
+    const onTableScroll = () => sync(tableScroll, barScroll);
+    const onBarScroll = () => sync(barScroll, tableScroll);
+
+    tableScroll.addEventListener('scroll', onTableScroll, { passive: true });
+    barScroll.addEventListener('scroll', onBarScroll, { passive: true });
+    return () => {
+      tableScroll.removeEventListener('scroll', onTableScroll);
+      barScroll.removeEventListener('scroll', onBarScroll);
+    };
+  }, [tableMinWidth, rows.length]);
 
   return (
     <>
@@ -234,17 +280,22 @@ export function PivotTable({
       >
         {months.length > 4 && (
           <p className="mb-2 rounded-full bg-[#F1F5F9] px-3 py-1.5 text-center text-sm text-[#2563EB]">
-            ← прокрутите таблицу для просмотра всех месяцев →
+            ← используйте горизонтальную полосу прокрутки над таблицей →
           </p>
         )}
 
         {rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-[#6B7280]">Нет данных</p>
         ) : (
-          <div
-            ref={scrollRef}
-            className="overflow-x-auto rounded-lg border border-[#E5E7EB]"
-          >
+          <div className="overflow-hidden rounded-lg border border-[#E5E7EB]">
+            <div
+              ref={hScrollRef}
+              className="pivot-table-h-scrollbar overflow-x-scroll overflow-y-hidden border-b border-[#E5E7EB] bg-[#F8FAFC]"
+              aria-label="Горизонтальная прокрутка таблицы"
+            >
+              <div style={{ width: tableMinWidth, height: 1 }} aria-hidden />
+            </div>
+            <div ref={scrollRef} className="pivot-table-body-scroll overflow-x-scroll">
             <table
               className="border-collapse text-left text-sm"
               style={{ minWidth: tableMinWidth }}
@@ -270,10 +321,10 @@ export function PivotTable({
                   {months.map((m) => (
                     <th
                       key={m}
-                      colSpan={3}
+                      colSpan={metricHeadersList.length}
                       className="border-b border-l border-[#E5E7EB] px-2 py-2 text-center text-xs font-semibold uppercase text-[#374151]"
                     >
-                      {formatMonthLabel(m)}
+                      {formatPeriodLabel(m, timeGrouping)}
                     </th>
                   ))}
                   <th
@@ -288,12 +339,12 @@ export function PivotTable({
                 </tr>
                 <tr className="bg-[#F8FAFC]">
                   {months.map((m) =>
-                    METRIC_HEADERS.map(({ metric, label }, idx) => (
+                    metricHeadersList.map(({ metric, label }, idx) => (
                       <th
                         key={`${m}-${metric}`}
                         className={`cursor-pointer border-b border-[#E5E7EB] px-1 py-2 text-right text-[10px] font-semibold uppercase text-[#6B7280] ${
                           idx === 0 ? 'border-l border-[#E5E7EB]' : ''
-                        } ${idx === 2 ? 'border-r border-[#E5E7EB]' : ''}`}
+                        } ${idx === metricHeadersList.length - 1 ? 'border-r border-[#E5E7EB]' : ''}`}
                         style={{
                           minWidth:
                             metric === 'value' ? COL.subValue : metric === 'mom' ? COL.subMom : COL.subYoy,
@@ -322,12 +373,13 @@ export function PivotTable({
                     style={{ left: STICKY.trend, minWidth: COL.trend, width: COL.trend }}
                   />
                   {months.map((m) => (
-                    <MonthMetricCells
+                    <PeriodMetricCells
                       key={`total-${m}`}
                       monthly={grandTotal.monthly}
                       yoyMonthly={grandTotal.yoyMonthly}
-                      monthKey={m}
-                      months={months}
+                      periodKey={m}
+                      periods={months}
+                      timeGrouping={timeGrouping}
                     />
                   ))}
                   <td
@@ -384,12 +436,13 @@ export function PivotTable({
                         <Sparkline values={sparkValues} />
                       </td>
                       {months.map((m) => (
-                        <MonthMetricCells
+                        <PeriodMetricCells
                           key={m}
                           monthly={row.monthly}
                           yoyMonthly={row.yoyMonthly}
-                          monthKey={m}
-                          months={months}
+                          periodKey={m}
+                          periods={months}
+                          timeGrouping={timeGrouping}
                         />
                       ))}
                       <td
@@ -403,6 +456,7 @@ export function PivotTable({
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </Card>
@@ -506,4 +560,4 @@ export function PivotTable({
       <div className="h-[40vh]" aria-hidden="true" />
     </>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -8,9 +8,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { SplitChartDimension } from '../types/filters';
+import type { SplitChartDimension, TimeGrouping } from '../types/filters';
 import type { SplitSeries } from '../types/analytics';
-import { formatMonthShort } from '../utils/dateUtils';
+import { formatPeriodShort, sortPeriodKeys } from '../utils/periodGrouping';
 import { formatNumber } from '../utils/formatters';
 import { getSplitColor } from '../utils/pivotTable';
 import {
@@ -26,28 +26,33 @@ interface SplitDynamicsChartProps {
   onDimensionChange: (d: SplitChartDimension) => void;
   byNetwork: SplitSeries[];
   byRegion: SplitSeries[];
+  timeGrouping: TimeGrouping;
 }
 
-export function SplitDynamicsChart({
+export const SplitDynamicsChart = memo(function SplitDynamicsChart({
   dimension,
   onDimensionChange,
   byNetwork,
   byRegion,
+  timeGrouping,
 }: SplitDynamicsChartProps) {
   const series = dimension === 'network' ? byNetwork : byRegion;
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
   const monthKeys = useMemo(
     () =>
-      [...new Set(series.flatMap((s) => s.points.map((p) => p.monthKey)))].sort(),
-    [series],
+      sortPeriodKeys(
+        new Set(series.flatMap((s) => s.points.map((p) => p.monthKey))),
+        timeGrouping,
+      ),
+    [series, timeGrouping],
   );
 
   const chartData = useMemo(() => {
     return monthKeys.map((monthKey) => {
       const row: Record<string, string | number> = {
         monthKey,
-        label: formatMonthShort(monthKey),
+        label: formatPeriodShort(monthKey, timeGrouping),
       };
       for (const s of series) {
         const point = s.points.find((p) => p.monthKey === monthKey);
@@ -183,4 +188,4 @@ export function SplitDynamicsChart({
       )}
     </Card>
   );
-}
+});

@@ -1,8 +1,14 @@
 import type { SalesRecord } from '../types/sales';
 import type { MomChange, MonthlySalesWithYoy, PivotLevel, PivotNode, SplitSeries } from '../types/analytics';
-import type { PivotHierarchyOrder } from '../types/filters';
+import type { PivotHierarchyOrder, TimeGrouping } from '../types/filters';
 import { THRESHOLDS } from '../constants/thresholds';
-import { formatMonthLabel, getPreviousMonthKey } from './dateUtils';
+import {
+  formatPeriodLabel,
+  getPreviousPeriodKey,
+  getYoYPeriodKeyForGrouping,
+  monthKeyToPeriodKey,
+  sortPeriodKeys,
+} from './periodGrouping';
 import { formatPointLabel } from './formatters';
 import {
   aggregateByKey,
@@ -16,12 +22,20 @@ export function getYoYMonthKey(monthKey: string): string {
   return `${Number(year) - 1}-${month}`;
 }
 
+function aggregatePeriodMap(
+  records: SalesRecord[],
+  grouping: TimeGrouping,
+): Map<string, number> {
+  return aggregateByKey(records, (r) => monthKeyToPeriodKey(r.monthKey, grouping));
+}
+
 export function enrichMonthlyWithYoy(
   monthly: ReturnType<typeof aggregateMonthly>,
   allMonthlyMap: Map<string, number>,
+  grouping: TimeGrouping = 'month',
 ): MonthlySalesWithYoy[] {
   return monthly.map((m) => {
-    const yoyKey = getYoYMonthKey(m.monthKey);
+    const yoyKey = getYoYPeriodKeyForGrouping(m.monthKey, grouping);
     const yoySales = allMonthlyMap.get(yoyKey) ?? null;
     const yoyChangePct =
       yoySales !== null && yoySales > 0
@@ -36,72 +50,119 @@ export function enrichMonthlyWithYoy(
   });
 }
 
-export function calcMomChange(
-  records: SalesRecord[],
-  periodTo: string,
+export function calcSequentialPeriodChangeFromMap(
+  periodMap: Map<string, number>,
+  periodToMonth: string,
+  grouping: TimeGrouping,
 ): MomChange {
-  const monthlyMap = aggregateByKey(records, (r) => r.monthKey);
-  const lastMonthKey = periodTo;
-  const prevMonthKey = getPreviousMonthKey(lastMonthKey);
+  const lastKey = monthKeyToPeriodKey(periodToMonth, grouping);
+  const prevKey = getPreviousPeriodKey(lastKey, grouping);
 
-  const lastSales = monthlyMap.get(lastMonthKey) ?? 0;
-  const prevSales = monthlyMap.get(prevMonthKey) ?? 0;
+  const lastSales = periodMap.get(lastKey) ?? 0;
+  const prevSales = prevKey ? (periodMap.get(prevKey) ?? 0) : 0;
   const { changeAbs, changePct } = calcChange(lastSales, prevSales);
 
   return {
     changeAbs,
     changePct,
     hasBase: prevSales > 0,
-    lastMonthLabel: lastMonthKey ? formatMonthLabel(lastMonthKey) : null,
-    previousMonthLabel: prevMonthKey ? formatMonthLabel(prevMonthKey) : null,
+    lastMonthLabel: lastKey ? formatPeriodLabel(lastKey, grouping) : null,
+    previousMonthLabel: prevKey ? formatPeriodLabel(prevKey, grouping) : null,
   };
 }
 
-export function calcYoyChange(
+export function calcSequentialPeriodChange(
+  records: SalesRecord[],
+  periodToMonth: string,
+  grouping: TimeGrouping,
+): MomChange {
+  return calcSequentialPeriodChangeFromMap(
+    aggregatePeriodMap(records, grouping),
+    periodToMonth,
+    grouping,
+  );
+}
+
+/** @deprecated use calcSequentialPeriodChange */
+export function calcMomChange(
   records: SalesRecord[],
   periodTo: string,
 ): MomChange {
-  const monthlyMap = aggregateByKey(records, (r) => r.monthKey);
-  const lastMonthKey = periodTo;
-  const yoyKey = getYoYMonthKey(lastMonthKey);
+  return calcSequentialPeriodChange(records, periodTo, 'month');
+}
 
-  const lastSales = monthlyMap.get(lastMonthKey) ?? 0;
-  const yoySales = monthlyMap.get(yoyKey) ?? 0;
+export function calcYoyChangeFromMap(
+  periodMap: Map<string, number>,
+  periodToMonth: string,
+  grouping: TimeGrouping,
+): MomChange {
+  const lastKey = monthKeyToPeriodKey(periodToMonth, grouping);
+  const yoyKey = getYoYPeriodKeyForGrouping(lastKey, grouping);
+
+  const lastSales = periodMap.get(lastKey) ?? 0;
+  const yoySales = periodMap.get(yoyKey) ?? 0;
   const { changeAbs, changePct } = calcChange(lastSales, yoySales);
 
   return {
     changeAbs,
     changePct,
     hasBase: yoySales > 0,
-    lastMonthLabel: lastMonthKey ? formatMonthLabel(lastMonthKey) : null,
-    previousMonthLabel: yoyKey ? formatMonthLabel(yoyKey) : null,
+    lastMonthLabel: lastKey ? formatPeriodLabel(lastKey, grouping) : null,
+    previousMonthLabel: yoyKey ? formatPeriodLabel(yoyKey, grouping) : null,
   };
 }
 
+export function calcYoyChange(
+  records: SalesRecord[],
+  periodToMonth: string,
+  grouping: TimeGrouping = 'month',
+): MomChange {
+  return calcYoyChangeFromMap(aggregatePeriodMap(records, grouping), periodToMonth, grouping);
+}
+
+export function calcPeriodSequentialPct(
+  periodSales: Record<string, number>,
+  periodKey: string,
+  periods: string[],
+): number | null {
+  const idx = periods.indexOf(periodKey);
+  if (idx <= 0) return null;
+  const prevKey = periods[idx - 1];
+  const cur = periodSales[periodKey] ?? 0;
+  const prev = periodSales[prevKey] ?? 0;
+  if (!cur || prev <= 0) return null;
+  return ((cur - prev) / prev) * 100;
+}
+
+/** @deprecated use calcPeriodSequentialPct */
 export function calcMonthMomPct(
   monthly: Record<string, number>,
   monthKey: string,
   months: string[],
 ): number | null {
-  const idx = months.indexOf(monthKey);
-  if (idx <= 0) return null;
-  const prevKey = months[idx - 1];
-  const cur = monthly[monthKey] ?? 0;
-  const prev = monthly[prevKey] ?? 0;
-  if (!cur || prev <= 0) return null;
-  return ((cur - prev) / prev) * 100;
+  return calcPeriodSequentialPct(monthly, monthKey, months);
 }
 
+export function calcPeriodYoyPct(
+  periodSales: Record<string, number>,
+  yoyBaseline: Record<string, number>,
+  periodKey: string,
+  grouping: TimeGrouping,
+): number | null {
+  const yoyKey = getYoYPeriodKeyForGrouping(periodKey, grouping);
+  const cur = periodSales[periodKey] ?? 0;
+  const yoy = yoyBaseline[yoyKey];
+  if (!cur || yoy === undefined || yoy <= 0) return null;
+  return ((cur - yoy) / yoy) * 100;
+}
+
+/** @deprecated use calcPeriodYoyPct */
 export function calcMonthYoyPct(
   periodMonthly: Record<string, number>,
   yoyBaseline: Record<string, number>,
   monthKey: string,
 ): number | null {
-  const yoyKey = getYoYMonthKey(monthKey);
-  const cur = periodMonthly[monthKey] ?? 0;
-  const yoy = yoyBaseline[yoyKey];
-  if (!cur || yoy === undefined || yoy <= 0) return null;
-  return ((cur - yoy) / yoy) * 100;
+  return calcPeriodYoyPct(periodMonthly, yoyBaseline, monthKey, 'month');
 }
 
 export function aggregateSubjects(
@@ -142,6 +203,7 @@ export function getSplitColor(index: number): string {
 export function aggregateSplitSeries(
   records: SalesRecord[],
   dimension: 'network' | 'region',
+  grouping: TimeGrouping = 'month',
   maxSeries = 12,
 ): SplitSeries[] {
   const keyFn =
@@ -153,9 +215,10 @@ export function aggregateSplitSeries(
 
   for (const r of records) {
     const group = keyFn(r);
+    const periodKey = monthKeyToPeriodKey(r.monthKey, grouping);
     if (!groupMonth.has(group)) groupMonth.set(group, new Map());
     const monthMap = groupMonth.get(group)!;
-    monthMap.set(r.monthKey, (monthMap.get(r.monthKey) ?? 0) + r.salesCount);
+    monthMap.set(periodKey, (monthMap.get(periodKey) ?? 0) + r.salesCount);
   }
 
   const totals = [...groupMonth.entries()]
@@ -244,24 +307,32 @@ export const PIVOT_LEVEL_LABELS: Record<PivotLevel, string> = {
   pharmacy: 'Аптека',
 };
 
-function buildMonthlyMap(records: SalesRecord[]): Record<string, number> {
+function buildPeriodSalesMap(
+  records: SalesRecord[],
+  grouping: TimeGrouping,
+): Record<string, number> {
   const map: Record<string, number> = {};
   for (const r of records) {
-    map[r.monthKey] = (map[r.monthKey] ?? 0) + r.salesCount;
+    const pk = monthKeyToPeriodKey(r.monthKey, grouping);
+    map[pk] = (map[pk] ?? 0) + r.salesCount;
   }
   return map;
 }
 
-/** YoY baseline months for visible period — always from data without period filter */
+/** YoY baseline for visible periods — from data without period filter */
 function buildYoyBaselineMap(
   records: SalesRecord[],
-  displayMonths: string[],
+  displayPeriods: string[],
+  grouping: TimeGrouping,
 ): Record<string, number> {
-  const yoyKeys = new Set(displayMonths.map(getYoYMonthKey));
+  const yoyKeys = new Set(
+    displayPeriods.map((p) => getYoYPeriodKeyForGrouping(p, grouping)),
+  );
   const map: Record<string, number> = {};
   for (const r of records) {
-    if (yoyKeys.has(r.monthKey)) {
-      map[r.monthKey] = (map[r.monthKey] ?? 0) + r.salesCount;
+    const pk = monthKeyToPeriodKey(r.monthKey, grouping);
+    if (yoyKeys.has(pk)) {
+      map[pk] = (map[pk] ?? 0) + r.salesCount;
     }
   }
   return map;
@@ -288,7 +359,8 @@ function buildPivotLevel(
   levels: PivotLevel[],
   pathPrefix: string,
   scopedYoy: SalesRecord[] | undefined,
-  displayMonths: string[],
+  displayPeriods: string[],
+  grouping: TimeGrouping,
 ): PivotNode[] {
   if (!levels.length || !records.length) return [];
 
@@ -306,10 +378,10 @@ function buildPivotLevel(
   return [...groups.entries()]
     .map(([key, groupRecords]) => {
       const branchYoy = yoyByKey?.get(key);
-      const monthly = buildMonthlyMap(groupRecords);
+      const monthly = buildPeriodSalesMap(groupRecords, grouping);
       const yoyMonthly =
-        branchYoy?.length && displayMonths.length
-          ? buildYoyBaselineMap(branchYoy, displayMonths)
+        branchYoy?.length && displayPeriods.length
+          ? buildYoyBaselineMap(branchYoy, displayPeriods, grouping)
           : {};
       const total = sumSales(groupRecords);
       const sample = groupRecords[0];
@@ -327,7 +399,8 @@ function buildPivotLevel(
           levels.slice(1),
           id,
           branchYoy,
-          displayMonths,
+          displayPeriods,
+          grouping,
         ),
       };
     })
@@ -339,12 +412,17 @@ export function buildPivotTable(
   order: PivotHierarchyOrder,
   selectedLevels?: PivotLevel[],
   yoyRecords?: SalesRecord[],
+  grouping: TimeGrouping = 'month',
 ): { months: string[]; tree: PivotNode[] } {
-  const monthSet = new Set<string>();
-  for (const r of records) monthSet.add(r.monthKey);
-  const months = [...monthSet].sort();
+  const periodSet = new Set<string>();
+  for (const r of records) {
+    periodSet.add(monthKeyToPeriodKey(r.monthKey, grouping));
+  }
+  const months = sortPeriodKeys(periodSet, grouping);
   const levels = getHierarchyLevels(order, selectedLevels);
-  const tree = levels.length ? buildPivotLevel(records, levels, 'root', yoyRecords, months) : [];
+  const tree = levels.length
+    ? buildPivotLevel(records, levels, 'root', yoyRecords, months, grouping)
+    : [];
   return { months, tree };
 }
 
@@ -352,8 +430,9 @@ export function flattenPivotRows(
   nodes: PivotNode[],
   expanded: Set<string>,
   depth = 0,
+  grouping: TimeGrouping = 'month',
 ): Array<PivotNode & { depth: number }> {
-  return flattenPivotRowsSorted(nodes, expanded, 'total', 'desc', [], depth);
+  return flattenPivotRowsSorted(nodes, expanded, 'total', 'desc', [], depth, grouping);
 }
 
 export type PivotMonthMetric = 'value' | 'mom' | 'yoy';
@@ -367,7 +446,7 @@ export function pivotMonthSortKey(month: string, metric: PivotMonthMetric): stri
 export function parsePivotMonthSortKey(
   sortKey: string,
 ): { month: string; metric: PivotMonthMetric } | null {
-  const match = sortKey.match(/^(\d{4}-\d{2}):(value|mom|yoy)$/);
+  const match = sortKey.match(/^(.+):(value|mom|yoy)$/);
   if (!match) return null;
   return { month: match[1], metric: match[2] as PivotMonthMetric };
 }
@@ -376,6 +455,7 @@ function getNodeSortValue(
   node: PivotNode,
   sortKey: PivotSortKey,
   months: string[],
+  grouping: TimeGrouping,
 ): number | string {
   if (sortKey === 'name') return node.label.toLowerCase();
   if (sortKey === 'total') return node.total;
@@ -394,12 +474,12 @@ function getNodeSortValue(
     const { month, metric } = monthMetric;
     if (metric === 'value') return node.monthly[month] ?? 0;
     if (metric === 'mom') {
-      return calcMonthMomPct(node.monthly, month, months) ?? -Infinity;
+      return calcPeriodSequentialPct(node.monthly, month, months) ?? -Infinity;
     }
-    return calcMonthYoyPct(node.monthly, node.yoyMonthly, month) ?? -Infinity;
+    return calcPeriodYoyPct(node.monthly, node.yoyMonthly, month, grouping) ?? -Infinity;
   }
 
-  if (/^\d{4}-\d{2}$/.test(sortKey)) {
+  if (node.monthly[sortKey] !== undefined) {
     return node.monthly[sortKey] ?? 0;
   }
 
@@ -411,9 +491,10 @@ function compareNodes(
   b: PivotNode,
   sortKey: PivotSortKey,
   months: string[],
+  grouping: TimeGrouping,
 ): number {
-  const va = getNodeSortValue(a, sortKey, months);
-  const vb = getNodeSortValue(b, sortKey, months);
+  const va = getNodeSortValue(a, sortKey, months, grouping);
+  const vb = getNodeSortValue(b, sortKey, months, grouping);
   if (typeof va === 'string' && typeof vb === 'string') {
     return va.localeCompare(vb, 'ru');
   }
@@ -425,9 +506,10 @@ function sortSiblings(
   sortKey: PivotSortKey,
   sortDir: PivotSortDir,
   months: string[],
+  grouping: TimeGrouping,
 ): PivotNode[] {
   return [...nodes].sort((a, b) => {
-    const cmp = compareNodes(a, b, sortKey, months);
+    const cmp = compareNodes(a, b, sortKey, months, grouping);
     return sortDir === 'asc' ? cmp : -cmp;
   });
 }
@@ -440,9 +522,10 @@ export function flattenPivotRowsSorted(
   sortDir: PivotSortDir,
   months: string[],
   depth = 0,
+  grouping: TimeGrouping = 'month',
 ): Array<PivotNode & { depth: number }> {
   const rows: Array<PivotNode & { depth: number }> = [];
-  const sorted = sortSiblings(nodes, sortKey, sortDir, months);
+  const sorted = sortSiblings(nodes, sortKey, sortDir, months, grouping);
 
   for (const node of sorted) {
     rows.push({ ...node, depth });
@@ -455,6 +538,7 @@ export function flattenPivotRowsSorted(
           sortDir,
           months,
           depth + 1,
+          grouping,
         ),
       );
     }

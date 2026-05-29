@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Building2, Globe2, Store } from 'lucide-react';
+import type { TimeGrouping } from '../types/filters';
 import type { KpiData, MomChange } from '../types/analytics';
+import { getPeriodComparisonLabel } from '../utils/periodGrouping';
 import { THRESHOLDS } from '../constants/thresholds';
 import { formatNumber, formatPercent, formatSales } from '../utils/formatters';
 import { Hint, Tip } from './Tooltip';
@@ -106,9 +108,12 @@ function ChangeMetric({
 interface KpiCardsProps {
   kpi: KpiData;
   hasData: boolean;
+  timeGrouping: TimeGrouping;
 }
 
-export function KpiCards({ kpi, hasData }: KpiCardsProps) {
+export const KpiCards = memo(function KpiCards({ kpi, hasData, timeGrouping }: KpiCardsProps) {
+  const sequentialLabel = getPeriodComparisonLabel(timeGrouping);
+  const showSequential = timeGrouping !== 'year';
   if (!hasData) {
     return (
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -146,15 +151,27 @@ export function KpiCards({ kpi, hasData }: KpiCardsProps) {
               {formatSales(kpi.totalSales)}
             </p>
           </div>
-          <ChangeMetric
-            title="Изменение MoM"
-            change={kpi.momChange}
-            hint="Сравнение последнего месяца периода с предыдущим"
-          />
+          {showSequential && (
+            <ChangeMetric
+              title={`Изменение ${sequentialLabel}`}
+              change={kpi.momChange}
+              hint={
+                timeGrouping === 'quarter'
+                  ? 'Сравнение последнего квартала периода с предыдущим'
+                  : 'Сравнение последнего месяца периода с предыдущим'
+              }
+            />
+          )}
           <ChangeMetric
             title="Изменение YoY"
             change={kpi.yoyChange}
-            hint="Сравнение последнего месяца периода с тем же месяцем год назад"
+            hint={
+              timeGrouping === 'year'
+                ? 'Сравнение последнего года периода с предыдущим'
+                : timeGrouping === 'quarter'
+                  ? 'Сравнение последнего квартала с тем же кварталом год назад'
+                  : 'Сравнение последнего месяца периода с тем же месяцем год назад'
+            }
           />
         </div>
       </Card>
@@ -178,4 +195,4 @@ export function KpiCards({ kpi, hasData }: KpiCardsProps) {
       />
     </div>
   );
-}
+});

@@ -1,7 +1,8 @@
 import * as XLSX from 'xlsx';
 import type { PivotLevel, PivotNode } from '../types/analytics';
+import type { TimeGrouping } from '../types/filters';
 import { PIVOT_LEVEL_LABELS } from './pivotTable';
-import { formatMonthLabel } from './dateUtils';
+import { formatPeriodLabel } from './periodGrouping';
 
 function getAllExpandableIds(tree: PivotNode[]): Set<string> {
   const ids = new Set<string>();
@@ -61,10 +62,17 @@ function flattenTreeWithPathLimited(
   return result;
 }
 
+const PERIOD_COLUMN_LABELS: Record<TimeGrouping, string> = {
+  month: 'Месяц',
+  quarter: 'Квартал',
+  year: 'Год',
+};
+
 export function exportPivotToExcel(
   tree: PivotNode[],
   months: string[],
   dimensionLevels: PivotLevel[],
+  timeGrouping: TimeGrouping = 'month',
   _expanded?: Set<string>,
   filename = 'sales_pivot.xlsx',
 ): void {
@@ -75,7 +83,7 @@ export function exportPivotToExcel(
 
   const headers = [
     ...safeLevels.map((l) => PIVOT_LEVEL_LABELS[l]),
-    ...months.map((m) => formatMonthLabel(m)),
+    ...months.map((m) => formatPeriodLabel(m, timeGrouping)),
     'Итого',
   ];
 
@@ -105,12 +113,16 @@ export function exportPivotToExcel(
   // Pivot-ready (normalized) sheet for creating a real Excel PivotTable.
   // Important: only export deepest selected level rows to avoid duplicates
   // (e.g. "Москва" total row + pharmacies within Moscow).
-  const pivotHeaders = [...safeLevels.map((l) => PIVOT_LEVEL_LABELS[l]), 'Месяц', 'Продажи'];
+  const pivotHeaders = [
+    ...safeLevels.map((l) => PIVOT_LEVEL_LABELS[l]),
+    PERIOD_COLUMN_LABELS[timeGrouping],
+    'Продажи',
+  ];
   const leafRows = rows.filter((r) => r.level === targetLevel);
   const pivotData = leafRows.flatMap((row) =>
     months.map((m) => [
       ...safeLevels.map((l) => row.path[l] ?? ''),
-      formatMonthLabel(m),
+      formatPeriodLabel(m, timeGrouping),
       row.monthly[m] ?? 0,
     ]),
   );

@@ -5,7 +5,7 @@ import {
   type LoadResult,
 } from '../services/dataService';
 import type { DataLoadError, DataLoadState, SalesRecord } from '../types/sales';
-import type { DateBounds } from '../utils/filters';
+import type { DateBounds } from '../utils/periodBounds';
 
 export interface CsvDataset {
   records: SalesRecord[];

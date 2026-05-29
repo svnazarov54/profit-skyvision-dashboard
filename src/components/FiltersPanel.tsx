@@ -1,7 +1,8 @@
 import { Check, Link2 } from 'lucide-react';
 import { useState } from 'react';
-import type { FilterOptions, FilterState, PeriodPreset } from '../types/filters';
+import type { FilterOptions, FilterState, PeriodPreset, TimeGrouping } from '../types/filters';
 import { PERIOD_PRESET_LABELS } from '../types/filters';
+import { TIME_GROUPING_LABELS } from '../utils/periodGrouping';
 import { formatDateRange } from '../utils/dateUtils';
 import { getPeriodRange } from '../utils/dateUtils';
 import { buildFiltersShareUrl } from '../utils/filterUrl';
@@ -27,6 +28,8 @@ const PRESETS: PeriodPreset[] = [
   'current_year',
   'previous_year',
 ];
+
+const TIME_GROUPINGS: TimeGrouping[] = ['month', 'quarter', 'year'];
 
 function getFilterSummary(selected: string[], allLabel: string): string {
   if (!selected.length) return allLabel;
@@ -106,7 +109,37 @@ export function FiltersPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-[#6B7280]">Группировка периода:</span>
+        {TIME_GROUPINGS.map((g) => (
+          <button
+            key={g}
+            type="button"
+            onClick={() => onUpdate('timeGrouping', g)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              filters.timeGrouping === g
+                ? 'border-[#2563EB] bg-[#DBEAFE] text-[#2563EB]'
+                : 'border-[#E5E7EB] text-[#6B7280] hover:border-[#2563EB]'
+            }`}
+          >
+            {TIME_GROUPING_LABELS[g]}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-7">
+        <DropdownFilter
+          label="Бренд"
+          summary={getFilterSummary(filters.brands, 'Все бренды')}
+        >
+          <SearchableCheckboxList
+            options={options.brands}
+            selected={filters.brands}
+            onChange={(v) => onUpdate('brands', v)}
+            placeholder="Поиск бренда"
+          />
+        </DropdownFilter>
+
         <DropdownFilter
           label="SKU (препарат)"
           summary={getFilterSummary(filters.skus, 'Все SKU')}

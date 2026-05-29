@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   Bar,
   BarChart,
@@ -20,7 +21,7 @@ interface NetworkComparisonChartProps {
   data: AggregatedEntity[];
 }
 
-export function NetworkComparisonChart({ data }: NetworkComparisonChartProps) {
+export const NetworkComparisonChart = memo(function NetworkComparisonChart({ data }: NetworkComparisonChartProps) {
   const chartData = data.slice(0, 15).map((d) => ({
     ...d,
     shortName: d.name.length > 25 ? d.name.slice(0, 25) + '…' : d.name,
@@ -91,4 +92,4 @@ export function NetworkComparisonChart({ data }: NetworkComparisonChartProps) {
       )}
     </Card>
   );
-}
+});

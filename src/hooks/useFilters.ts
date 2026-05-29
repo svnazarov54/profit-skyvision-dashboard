@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import { DEFAULT_FILTERS, type FilterState } from '../types/filters';
 import { readFiltersFromUrl, syncFiltersToUrl } from '../utils/filterUrl';
 
 export function useFilters() {
   const [filters, setFilters] = useState<FilterState>(() => readFiltersFromUrl());
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     syncFiltersToUrl(filters);
@@ -19,40 +20,49 @@ export function useFilters() {
     key: K,
     value: FilterState[K],
   ) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    startTransition(() => {
+      setFilters((prev) => ({ ...prev, [key]: value }));
+    });
   }, []);
 
   const toggleArrayFilter = useCallback(
     (key: 'networks' | 'cities' | 'federalSubjects' | 'points' | 'skus', value: string) => {
-      setFilters((prev) => {
-        const arr = prev[key];
-        const next = arr.includes(value)
-          ? arr.filter((v) => v !== value)
-          : [...arr, value];
-        return { ...prev, [key]: next };
+      startTransition(() => {
+        setFilters((prev) => {
+          const arr = prev[key];
+          const next = arr.includes(value)
+            ? arr.filter((v) => v !== value)
+            : [...arr, value];
+          return { ...prev, [key]: next };
+        });
       });
     },
     [],
   );
 
   const resetFilters = useCallback(() => {
-    setFilters(DEFAULT_FILTERS);
+    startTransition(() => {
+      setFilters(DEFAULT_FILTERS);
+    });
   }, []);
 
   const setDateRange = useCallback(
     (dateFrom: string | null, dateTo: string | null) => {
-      setFilters((prev) => ({
-        ...prev,
-        periodPreset: 'all',
-        dateFrom,
-        dateTo,
-      }));
+      startTransition(() => {
+        setFilters((prev) => ({
+          ...prev,
+          periodPreset: 'all',
+          dateFrom,
+          dateTo,
+        }));
+      });
     },
     [],
   );
 
   return {
     filters,
+    isFilterPending: isPending,
     updateFilter,
     toggleArrayFilter,
     resetFilters,

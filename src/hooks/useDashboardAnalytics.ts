@@ -3,9 +3,8 @@ import type { DashboardAnalytics } from '../types/analytics';
 import type { FilterState, PivotHierarchyOrder } from '../types/filters';
 import type { SalesRecord } from '../types/sales';
 import {
-  aggregateMonthly,
+  aggregatePeriodSales,
   aggregateNetworks,
-  aggregateByKey,
   calcAvgMonthly,
   calcKpi,
   splitByPeriod,
@@ -15,43 +14,39 @@ import {
   aggregateSplitSeries,
   aggregateSubjects,
   buildPivotTable,
-  calcMomChange,
-  calcYoyChange,
+  calcSequentialPeriodChangeFromMap,
+  calcYoyChangeFromMap,
   enrichMonthlyWithYoy,
 } from '../utils/pivotTable';
-import {
-  filterRecords,
-  filterRecordsWithoutPeriod,
-  getEffectivePeriod,
-  getFilterOptions,
-  type DateBounds,
-} from '../utils/filters';
+import { scanRecordsForDashboard } from '../utils/recordScan';
+import type { DateBounds } from '../utils/periodBounds';
 
 export function useDashboardAnalytics(
   records: SalesRecord[],
   filters: FilterState,
   dateBounds: DateBounds,
   pivotOrder: PivotHierarchyOrder = 'region-only',
-): DashboardAnalytics & { filterOptions: ReturnType<typeof getFilterOptions>; hasData: boolean } {
+): DashboardAnalytics & { filterOptions: ReturnType<typeof scanRecordsForDashboard>['filterOptions']; hasData: boolean } {
   const deferredFilters = useDeferredValue(filters);
 
-  const filterOptions = useMemo(
-    () => getFilterOptions(records, deferredFilters, dateBounds),
+  const scan = useMemo(
+    () => scanRecordsForDashboard(records, deferredFilters, dateBounds),
     [records, deferredFilters, dateBounds],
   );
 
+  const deferredScan = useDeferredValue(scan);
+
   const core = useMemo(() => {
-    const filtered = filterRecords(records, deferredFilters, dateBounds);
-    const withoutPeriod = filterRecordsWithoutPeriod(records, deferredFilters);
-    const period = getEffectivePeriod(deferredFilters, dateBounds);
-    const { current, previous } = splitByPeriod(filtered, period);
+    const { current, withoutPeriod, periodTotalsWithoutPeriod, allPeriodTotalsMap, period } =
+      scan;
+    const grouping = deferredFilters.timeGrouping;
+    const { previous } = splitByPeriod(current, period);
 
     const totalSales = sumSales(current);
     const hasData = totalSales > 0 || current.length > 0;
 
-    const monthlyRaw = aggregateMonthly(current);
-    const allMonthlyMap = aggregateByKey(withoutPeriod, (r) => r.monthKey);
-    const monthlySales = enrichMonthlyWithYoy(monthlyRaw, allMonthlyMap);
+    const monthlyRaw = aggregatePeriodSales(current, grouping);
+    const monthlySales = enrichMonthlyWithYoy(monthlyRaw, allPeriodTotalsMap, grouping);
     const avgMonthlySales = calcAvgMonthly(monthlyRaw);
 
     const emptyChange = {
@@ -62,18 +57,23 @@ export function useDashboardAnalytics(
       previousMonthLabel: null,
     };
 
-    const momChange = period.to ? calcMomChange(withoutPeriod, period.to) : emptyChange;
-    const yoyChange = period.to ? calcYoyChange(withoutPeriod, period.to) : emptyChange;
+    const momChange = period.to
+      ? calcSequentialPeriodChangeFromMap(periodTotalsWithoutPeriod, period.to, grouping)
+      : emptyChange;
+    const yoyChange = period.to
+      ? calcYoyChangeFromMap(periodTotalsWithoutPeriod, period.to, grouping)
+      : emptyChange;
 
     const kpi = calcKpi(current, momChange, yoyChange);
     const networkSales = aggregateNetworks(current, previous, totalSales);
     const regionSales = aggregateSubjects(current, previous, totalSales);
-    const splitByNetwork = aggregateSplitSeries(current, 'network');
-    const splitByRegion = aggregateSplitSeries(current, 'region');
+    const splitByNetwork = aggregateSplitSeries(current, 'network', grouping);
+    const splitByRegion = aggregateSplitSeries(current, 'region', grouping);
 
     return {
       kpi,
       monthlySales,
+      timeGrouping: grouping,
       avgMonthlySales,
       networkSales,
       regionSales,
@@ -83,18 +83,30 @@ export function useDashboardAnalytics(
       currentRecords: current,
       withoutPeriod,
       dateRange: dateBounds.minDate ? { from: dateBounds.minDate, to: dateBounds.maxDate } : null,
-      filteredRowCount: filtered.length,
+      filteredRowCount: current.length,
       hasData,
     };
-  }, [records, deferredFilters, dateBounds]);
+  }, [scan, deferredFilters.timeGrouping, dateBounds]);
 
   const { pivotMonths, pivotTree } = useMemo(() => {
     if (!core.hasData) {
       return { pivotMonths: [] as string[], pivotTree: [] };
     }
-    const built = buildPivotTable(core.currentRecords, pivotOrder, undefined, core.withoutPeriod);
+    const built = buildPivotTable(
+      deferredScan.current,
+      pivotOrder,
+      undefined,
+      deferredScan.withoutPeriod,
+      core.timeGrouping,
+    );
     return { pivotMonths: built.months, pivotTree: built.tree };
-  }, [core.currentRecords, core.withoutPeriod, core.hasData, pivotOrder]);
+  }, [
+    deferredScan.current,
+    deferredScan.withoutPeriod,
+    core.hasData,
+    core.timeGrouping,
+    pivotOrder,
+  ]);
 
   const { withoutPeriod: _yoySource, ...analytics } = core;
 
@@ -102,6 +114,6 @@ export function useDashboardAnalytics(
     ...analytics,
     pivotMonths,
     pivotTree,
-    filterOptions,
+    filterOptions: scan.filterOptions,
   };
 }

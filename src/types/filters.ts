@@ -6,10 +6,14 @@ export type PeriodPreset =
   | 'current_year'
   | 'previous_year';
 
+export type TimeGrouping = 'month' | 'quarter' | 'year';
+
 export interface FilterState {
   periodPreset: PeriodPreset;
   dateFrom: string | null;
   dateTo: string | null;
+  brands: string[];
+  timeGrouping: TimeGrouping;
   networks: string[];
   cities: string[];
   federalSubjects: string[];
@@ -18,6 +22,7 @@ export interface FilterState {
 }
 
 export interface FilterOptions {
+  brands: string[];
   networks: string[];
   cities: string[];
   federalSubjects: string[];
@@ -31,6 +36,8 @@ export const DEFAULT_FILTERS: FilterState = {
   periodPreset: 'all',
   dateFrom: null,
   dateTo: null,
+  brands: [],
+  timeGrouping: 'month',
   networks: [],
   cities: [],
   federalSubjects: [],

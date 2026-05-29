@@ -1,24 +1,30 @@
+import { memo } from 'react';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import type { TimeGrouping } from '../types/filters';
 import type { MonthlySalesWithYoy } from '../types/analytics';
 import { CHART_COLORS } from '../constants/colors';
-import { formatMonthShort } from '../utils/dateUtils';
+import { formatPeriodShort, getPeriodComparisonLabel, SALES_TREND_TITLES } from '../utils/periodGrouping';
 import { formatNumber, formatPercent } from '../utils/formatters';
 import { CHART_TOOLTIP_PROPS, ChartTooltipPanel, ChartTooltipRow } from './chartTooltip';
 import { Card } from './ui';
 
 interface SalesTrendChartProps {
   data: MonthlySalesWithYoy[];
+  timeGrouping: TimeGrouping;
 }
 
-export function SalesTrendChart({ data }: SalesTrendChartProps) {
+export const SalesTrendChart = memo(function SalesTrendChart({ data, timeGrouping }: SalesTrendChartProps) {
+  const sequentialLabel = getPeriodComparisonLabel(timeGrouping);
+  const showSequential = timeGrouping !== 'year';
+
   const chartData = data.map((d) => ({
     ...d,
-    label: formatMonthShort(d.monthKey),
+    label: formatPeriodShort(d.monthKey, timeGrouping),
     yoyValue: d.yoySales ?? undefined,
   }));
 
   return (
-    <Card title="Динамика продаж по месяцам">
+    <Card title={SALES_TREND_TITLES[timeGrouping]}>
       {data.length === 0 ? (
         <p className="py-12 text-center text-sm text-[#6B7280]">Нет данных</p>
       ) : (
@@ -61,9 +67,9 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
                           color="#111827"
                         />
                       )}
-                      {d.changePct !== null && (
+                      {showSequential && d.changePct !== null && (
                         <ChartTooltipRow
-                          label="MoM"
+                          label={sequentialLabel}
                           value={formatPercent(d.changePct)}
                         />
                       )}
@@ -100,4 +106,4 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
       )}
     </Card>
   );
-}
+});

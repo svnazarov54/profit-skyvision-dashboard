@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   Bar,
   BarChart,
@@ -19,7 +20,7 @@ interface RegionSalesChartProps {
   data: AggregatedEntity[];
 }
 
-export function RegionSalesChart({ data }: RegionSalesChartProps) {
+export const RegionSalesChart = memo(function RegionSalesChart({ data }: RegionSalesChartProps) {
   const chartData = data.slice(0, 15).map((d) => ({
     ...d,
     shortName: d.name.length > 30 ? d.name.slice(0, 30) + '…' : d.name,
@@ -83,4 +84,4 @@ export function RegionSalesChart({ data }: RegionSalesChartProps) {
       )}
     </Card>
   );
-}
+});

@@ -2,6 +2,7 @@ import type { FilterState } from '../types/filters';
 import type { SalesRecord } from '../types/sales';
 
 export interface FilterSets {
+  brands: Set<string> | null;
   networks: Set<string> | null;
   cities: Set<string> | null;
   federalSubjects: Set<string> | null;
@@ -11,6 +12,7 @@ export interface FilterSets {
 
 export function toFilterSets(filters: FilterState): FilterSets {
   return {
+    brands: filters.brands.length ? new Set(filters.brands) : null,
     networks: filters.networks.length ? new Set(filters.networks) : null,
     cities: filters.cities.length ? new Set(filters.cities) : null,
     federalSubjects: filters.federalSubjects.length ? new Set(filters.federalSubjects) : null,
@@ -24,6 +26,7 @@ export function matchesGeoFilters(
   sets: FilterSets,
   exclude?: keyof FilterState,
 ): boolean {
+  if (exclude !== 'brands' && sets.brands && !sets.brands.has(r.product)) return false;
   if (exclude !== 'networks' && sets.networks && !sets.networks.has(r.network)) return false;
   if (exclude !== 'cities' && sets.cities && !sets.cities.has(r.city)) return false;
   if (exclude !== 'federalSubjects' && sets.federalSubjects && !sets.federalSubjects.has(r.federalSubject))

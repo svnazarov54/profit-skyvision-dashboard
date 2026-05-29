@@ -9,11 +9,9 @@ import type {
 import type { KpiData } from '../types/analytics';
 import type { MomChange } from '../types/analytics';
 import { THRESHOLDS } from '../constants/thresholds';
-import {
-  formatMonthLabel,
-  getPreviousMonthKey,
-  getPreviousPeriodRange,
-} from './dateUtils';
+import type { TimeGrouping } from '../types/filters';
+import { getPreviousMonthKey, getPreviousPeriodRange } from './dateUtils';
+import { formatPeriodLabel, monthKeyToPeriodKey, sortPeriodKeys } from './periodGrouping';
 
 export function calcChange(current: number, previous: number): ChangeMetrics {
   if (previous === 0) {
@@ -51,17 +49,25 @@ export function aggregateByKey(
 }
 
 export function aggregateMonthly(records: SalesRecord[]): MonthlySales[] {
-  const map = aggregateByKey(records, (r) => r.monthKey);
-  const sorted = [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  return aggregatePeriodSales(records, 'month');
+}
 
-  return sorted.map(([monthKey, sales], index) => {
-    const prev = index > 0 ? sorted[index - 1][1] : null;
+export function aggregatePeriodSales(
+  records: SalesRecord[],
+  grouping: TimeGrouping,
+): MonthlySales[] {
+  const map = aggregateByKey(records, (r) => monthKeyToPeriodKey(r.monthKey, grouping));
+  const sortedKeys = sortPeriodKeys(map.keys(), grouping);
+
+  return sortedKeys.map((periodKey, index) => {
+    const sales = map.get(periodKey) ?? 0;
+    const prev = index > 0 ? (map.get(sortedKeys[index - 1]) ?? 0) : null;
     const change =
       prev !== null ? calcChange(sales, prev) : { changeAbs: null, changePct: null };
 
     return {
-      monthKey,
-      monthLabel: formatMonthLabel(monthKey),
+      monthKey: periodKey,
+      monthLabel: formatPeriodLabel(periodKey, grouping),
       sales,
       changeAbs: change.changeAbs as number | null,
       changePct: change.changePct,

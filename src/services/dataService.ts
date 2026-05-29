@@ -1,73 +1,46 @@
-import Papa from 'papaparse';
-import {
-  COLUMN_MAPPING,
-  CSV_PATH,
-  EMPTY_VALUES,
-  FALLBACK_MAPPING,
-  REQUIRED_COLUMNS,
-} from '../constants/columnMapping';
-import { EXCLUDED_MONTH_KEYS } from '../constants/dataExclusions';
-import type { ColumnMapping, DataLoadError, SalesRecord } from '../types/sales';
-import { parseDate, toMonthKey } from '../utils/dateUtils';
-import { normalizeString, parseSalesCount } from '../utils/formatters';
+import { CSV_PATH } from '../constants/columnMapping';
+import type { DataLoadError } from '../types/sales';
+import { parseCsvTextWithPapa, type ParsedCsvPayload } from '../utils/csvNormalize';
+import type { CsvWorkerResponse } from '../workers/csvParser.worker';
 
-function getField(row: Record<string, string>, key: keyof ColumnMapping): string {
-  const primary = COLUMN_MAPPING[key];
-  const fallbacks = FALLBACK_MAPPING[key] ?? [];
-  const value = row[primary] ?? fallbacks.map((f) => row[f]).find(Boolean);
-  return normalizeString(value);
+export type LoadResult = ParsedCsvPayload;
+
+let csvWorker: Worker | null = null;
+
+function getCsvWorker(): Worker {
+  if (!csvWorker) {
+    csvWorker = new Worker(
+      new URL('../workers/csvParser.worker.ts', import.meta.url),
+      { type: 'module' },
+    );
+  }
+  return csvWorker;
 }
 
-function validateColumns(headers: string[]): DataLoadError | null {
-  const missing = REQUIRED_COLUMNS.filter((col) => !headers.includes(col));
-  if (missing.length > 0) return 'missing_columns';
-  return null;
+function parseInWorker(text: string): Promise<ParsedCsvPayload> {
+  return new Promise((resolve, reject) => {
+    const worker = getCsvWorker();
+    const onMessage = (event: MessageEvent<CsvWorkerResponse>) => {
+      worker.removeEventListener('message', onMessage);
+      worker.removeEventListener('error', onError);
+      const msg = event.data;
+      if (msg.type === 'success') resolve(msg.payload);
+      else reject({ type: msg.error });
+    };
+    const onError = () => {
+      worker.removeEventListener('message', onMessage);
+      worker.removeEventListener('error', onError);
+      reject({ type: 'parse_error' as DataLoadError });
+    };
+    worker.addEventListener('message', onMessage);
+    worker.addEventListener('error', onError);
+    worker.postMessage(text);
+  });
 }
 
-function normalizeRow(row: Record<string, string>): SalesRecord | null {
-  const periodStartRaw = getField(row, 'periodStart');
-  const periodStart = parseDate(periodStartRaw);
-
-  if (!periodStart) return null;
-
-  const network = getField(row, 'network') || EMPTY_VALUES.network;
-  const city = getField(row, 'city') || EMPTY_VALUES.city;
-  const fullCityRaw = getField(row, 'fullCity');
-  const fullCity = fullCityRaw || city;
-  const federalSubject = getField(row, 'federalSubject') || EMPTY_VALUES.federalSubject;
-  const address = getField(row, 'address') || EMPTY_VALUES.address;
-  const product = getField(row, 'product') || EMPTY_VALUES.product;
-  const sku = getField(row, 'sku') || EMPTY_VALUES.sku;
-  const salesCount = parseSalesCount(getField(row, 'salesCount'));
-
-  const periodEndRaw = getField(row, 'periodEnd');
-  const periodEnd = periodEndRaw ? parseDate(periodEndRaw) : null;
-  const monthKey = toMonthKey(periodStart);
-  if (EXCLUDED_MONTH_KEYS.has(monthKey)) return null;
-
-  const pointId = `${network}|${city}|${address}`;
-
-  return {
-    network,
-    city,
-    fullCity,
-    federalSubject,
-    address,
-    periodStart,
-    periodEnd,
-    product,
-    sku,
-    salesCount,
-    monthKey,
-    pointId,
-  };
-}
-
-export interface LoadResult {
-  records: SalesRecord[];
-  rowCount: number;
-  minDate: string;
-  maxDate: string;
+async function parseOnMainThread(text: string): Promise<ParsedCsvPayload> {
+  const Papa = await import('papaparse');
+  return parseCsvTextWithPapa(text, Papa);
 }
 
 export async function loadCsvData(path = CSV_PATH): Promise<LoadResult> {
@@ -84,47 +57,15 @@ export async function loadCsvData(path = CSV_PATH): Promise<LoadResult> {
 
   const text = await response.text();
 
-  return new Promise((resolve, reject) => {
-    Papa.parse<Record<string, string>>(text, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (!results.data.length) {
-          reject({ type: 'empty_csv' as DataLoadError });
-          return;
-        }
+  if (typeof Worker !== 'undefined') {
+    try {
+      return await parseInWorker(text);
+    } catch {
+      return parseOnMainThread(text);
+    }
+  }
 
-        const headers = results.meta.fields ?? [];
-        const columnError = validateColumns(headers);
-        if (columnError) {
-          reject({ type: columnError });
-          return;
-        }
-
-        const records: SalesRecord[] = [];
-        let minDate = '';
-        let maxDate = '';
-
-        for (let index = 0; index < results.data.length; index++) {
-          const normalized = normalizeRow(results.data[index]);
-          if (!normalized) continue;
-          records.push(normalized);
-          if (!minDate || normalized.monthKey < minDate) minDate = normalized.monthKey;
-          if (!maxDate || normalized.monthKey > maxDate) maxDate = normalized.monthKey;
-        }
-
-        if (!records.length) {
-          reject({ type: 'empty_csv' as DataLoadError });
-          return;
-        }
-
-        resolve({ records, rowCount: results.data.length, minDate, maxDate });
-      },
-      error: () => {
-        reject({ type: 'parse_error' as DataLoadError });
-      },
-    });
-  });
+  return parseOnMainThread(text);
 }
 
 export const ERROR_MESSAGES: Record<DataLoadError, string> = {

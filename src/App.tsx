@@ -44,7 +44,7 @@ function syncTabToUrl(tab: AppTab): void {
 
 function App() {
   const { state, records, dateBounds } = useCsvData();
-  const { filters, updateFilter, resetFilters, setFilters, setDateRange } =
+  const { filters, isFilterPending, updateFilter, resetFilters, setFilters, setDateRange } =
     useFilters();
   const [activeTab, setActiveTab] = useState<AppTab>(() => readTabFromUrl());
   const [pivotOrder, setPivotOrder] = useState<PivotHierarchyOrder>('region-only');
@@ -89,7 +89,7 @@ function App() {
 
   useEffect(() => {
     setPivotExpanded(new Set());
-  }, [pivotOrder]);
+  }, [pivotOrder, filters.timeGrouping]);
 
   useEffect(() => {
     if (activeTab !== 'spreadsheet') return;
@@ -138,6 +138,7 @@ function App() {
               analytics.pivotTree,
               analytics.pivotMonths,
               getOrderedPivotLevels(pivotOrder),
+              filters.timeGrouping,
             )
           }
         />
@@ -153,7 +154,9 @@ function App() {
           </span>
         </p>
 
-        <div className="sticky top-0 z-40 -mx-4 mb-6 border-b border-[#E5E7EB]/80 bg-[#F8FAFC]/95 px-4 py-3 backdrop-blur-md md:-mx-6 md:px-6">
+        <div
+          className={`sticky top-0 z-40 -mx-4 mb-6 border-b border-[#E5E7EB]/80 bg-[#F8FAFC]/95 px-4 py-3 backdrop-blur-md transition-opacity md:-mx-6 md:px-6 ${isFilterPending ? 'opacity-90' : ''}`}
+        >
           <FiltersPanel
             filters={filters}
             options={analytics.filterOptions}
@@ -181,15 +184,23 @@ function App() {
           </Suspense>
         ) : (
           <>
-            <KpiCards kpi={analytics.kpi} hasData={analytics.hasData} />
+            <KpiCards
+              kpi={analytics.kpi}
+              hasData={analytics.hasData}
+              timeGrouping={analytics.timeGrouping}
+            />
 
             <div className="mb-6 grid gap-4 xl:grid-cols-2">
-              <SalesTrendChart data={analytics.monthlySales} />
+              <SalesTrendChart
+                data={analytics.monthlySales}
+                timeGrouping={analytics.timeGrouping}
+              />
               <SplitDynamicsChart
                 dimension={splitDimension}
                 onDimensionChange={setSplitDimension}
                 byNetwork={analytics.splitByNetwork}
                 byRegion={analytics.splitByRegion}
+                timeGrouping={analytics.timeGrouping}
               />
             </div>
 
@@ -201,6 +212,7 @@ function App() {
             <PivotTable
               tree={analytics.pivotTree}
               months={analytics.pivotMonths}
+              timeGrouping={analytics.timeGrouping}
               order={pivotOrder}
               onOrderChange={setPivotOrder}
               expanded={pivotExpanded}

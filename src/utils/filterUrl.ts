@@ -2,6 +2,7 @@ import {
   DEFAULT_FILTERS,
   type FilterState,
   type PeriodPreset,
+  type TimeGrouping,
 } from '../types/filters';
 
 const VALID_PRESETS = new Set<PeriodPreset>([
@@ -20,6 +21,15 @@ function parsePreset(value: string | null): PeriodPreset {
   return 'all';
 }
 
+const VALID_GROUPINGS = new Set<TimeGrouping>(['month', 'quarter', 'year']);
+
+function parseTimeGrouping(value: string | null): TimeGrouping {
+  if (value && VALID_GROUPINGS.has(value as TimeGrouping)) {
+    return value as TimeGrouping;
+  }
+  return DEFAULT_FILTERS.timeGrouping;
+}
+
 /** yyyy-MM month string from URL */
 function parseMonth(value: string | null): string | null {
   if (!value) return null;
@@ -34,7 +44,11 @@ export function filtersToSearchParams(filters: FilterState): URLSearchParams {
   }
   if (filters.dateFrom) params.set('from', filters.dateFrom);
   if (filters.dateTo) params.set('to', filters.dateTo);
+  if (filters.timeGrouping !== DEFAULT_FILTERS.timeGrouping) {
+    params.set('group', filters.timeGrouping);
+  }
 
+  for (const value of filters.brands) params.append('brand', value);
   for (const value of filters.networks) params.append('network', value);
   for (const value of filters.federalSubjects) params.append('region', value);
   for (const value of filters.cities) params.append('city', value);
@@ -51,6 +65,8 @@ export function searchParamsToFilters(search: string): FilterState {
     periodPreset: parsePreset(params.get('preset')),
     dateFrom: parseMonth(params.get('from')),
     dateTo: parseMonth(params.get('to')),
+    brands: params.getAll('brand'),
+    timeGrouping: parseTimeGrouping(params.get('group')),
     networks: params.getAll('network'),
     federalSubjects: params.getAll('region'),
     cities: params.getAll('city'),
@@ -64,6 +80,8 @@ export function isDefaultFilters(filters: FilterState): boolean {
     filters.periodPreset === DEFAULT_FILTERS.periodPreset &&
     filters.dateFrom === DEFAULT_FILTERS.dateFrom &&
     filters.dateTo === DEFAULT_FILTERS.dateTo &&
+    filters.timeGrouping === DEFAULT_FILTERS.timeGrouping &&
+    filters.brands.length === 0 &&
     filters.networks.length === 0 &&
     filters.federalSubjects.length === 0 &&
     filters.cities.length === 0 &&

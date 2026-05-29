@@ -35,6 +35,38 @@ body {
   background: #9CA3AF;
 }
 
+/* Pivot table: one visible scrollbar on top; body scrolls in sync (hidden bar) */
+.pivot-table-h-scrollbar {
+  height: 14px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+}
+
+.pivot-table-h-scrollbar::-webkit-scrollbar {
+  height: 12px;
+}
+
+.pivot-table-h-scrollbar::-webkit-scrollbar-thumb {
+  background: #9CA3AF;
+  border-radius: 6px;
+  border: 2px solid #F8FAFC;
+}
+
+.pivot-table-h-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
+}
+
+.pivot-table-body-scroll {
+  overflow-x: scroll;
+  scrollbar-width: none;
+}
+
+.pivot-table-body-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .fortune-sheet-host {
   position: relative;
   width: 100%;

@@ -1,4 +1,5 @@
 import type { AggregatedEntity, MonthlySales, PointMetrics, SalesRecord } from './sales';
+import type { TimeGrouping } from './filters';
 
 export interface MomChange {
   changeAbs: number;
@@ -52,6 +53,7 @@ export interface PivotNode {
 export interface DashboardAnalytics {
   kpi: KpiData;
   monthlySales: MonthlySalesWithYoy[];
+  timeGrouping: TimeGrouping;
   avgMonthlySales: number;
   networkSales: AggregatedEntity[];
   regionSales: AggregatedEntity[];
