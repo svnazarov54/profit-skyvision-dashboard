@@ -4,7 +4,6 @@ import {
   FALLBACK_MAPPING,
   REQUIRED_COLUMNS,
 } from '../constants/columnMapping';
-import { EXCLUDED_MONTH_KEYS } from '../constants/dataExclusions';
 import type { ColumnMapping, DataLoadError, SalesRecord } from '../types/sales';
 import { parseDate, toMonthKey } from './dateUtils';
 import { normalizeString, parseSalesCount } from './formatters';
@@ -41,7 +40,6 @@ export function normalizeCsvRow(row: Record<string, string>): SalesRecord | null
   const periodEndRaw = getField(row, 'periodEnd');
   const periodEnd = periodEndRaw ? parseDate(periodEndRaw) : null;
   const monthKey = toMonthKey(periodStart);
-  if (EXCLUDED_MONTH_KEYS.has(monthKey)) return null;
 
   const pointId = `${network}|${city}|${address}`;
 
