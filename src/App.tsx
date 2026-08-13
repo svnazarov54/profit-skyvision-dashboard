@@ -145,14 +145,20 @@ function App() {
 
         <AppTabs active={activeTab} onChange={handleTabChange} />
 
-        <p className="mb-4 flex items-start gap-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 text-sm text-[#1E40AF] md:text-base">
+        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 text-sm text-[#1E40AF] md:text-base">
           <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-[#F59E0B]" aria-hidden />
-          <span>
-          Внизу страницы —{' '}
-          <span className="font-semibold">сводная таблица продаж</span> с детализацией по
-          регионам, городам и аптекам. Прокрутите вниз, чтобы открыть её.
-          </span>
-        </p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              Внизу страницы —{' '}
+              <span className="font-semibold">сводная таблица продаж</span> с детализацией по
+              регионам, городам и аптекам. Прокрутите вниз, чтобы открыть её.
+            </li>
+            <li>
+              По умолчанию выбраны бренды{' '}
+              <span className="font-semibold">Квинакс и Скайвижн</span>.
+            </li>
+          </ul>
+        </div>
 
         <div
           className={`sticky top-0 z-40 -mx-4 mb-6 border-b border-[#E5E7EB]/80 bg-[#F8FAFC]/95 px-4 py-3 backdrop-blur-md transition-opacity md:-mx-6 md:px-6 ${isFilterPending ? 'opacity-90' : ''}`}

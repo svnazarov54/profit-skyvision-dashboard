@@ -32,7 +32,7 @@ export function DashboardHeader({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#111827] md:text-3xl">
-            Аналитика продаж: Скайвижн и Квинакс
+            Аналитика продаж: Скайвижн (в т.ч. СТМ сетей) и Квинакс
           </h1>
           <p className="mt-1 text-sm text-[#6B7280] md:text-base">
             (на основе отчётов аптечных сетей)

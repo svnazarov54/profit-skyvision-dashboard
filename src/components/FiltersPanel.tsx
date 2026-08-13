@@ -1,4 +1,4 @@
-import { Check, Link2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
 import { useState } from 'react';
 import type { FilterOptions, FilterState, PeriodPreset, TimeGrouping } from '../types/filters';
 import { PERIOD_PRESET_LABELS } from '../types/filters';
@@ -58,6 +58,7 @@ export function FiltersPanel({
   onReset,
 }: FiltersPanelProps) {
   const [linkCopied, setLinkCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const applyPreset = (preset: PeriodPreset) => {
     const range = getPeriodRange(preset, options.minDate, options.maxDate);
@@ -79,7 +80,7 @@ export function FiltersPanel({
 
   return (
     <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className={`${isExpanded ? 'mb-3' : ''} flex flex-wrap items-center justify-between gap-2`}>
         <h2 className="text-lg font-bold text-[#111827] md:text-xl">Фильтры</h2>
         <div className="flex items-center gap-4">
           <button
@@ -109,7 +110,8 @@ export function FiltersPanel({
         </div>
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className={isExpanded ? '' : 'hidden'}>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-[#6B7280]">Группировка периода:</span>
         {TIME_GROUPINGS.map((g) => (
           <button
@@ -125,9 +127,9 @@ export function FiltersPanel({
             {TIME_GROUPING_LABELS[g]}
           </button>
         ))}
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-7">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-7">
         <DropdownFilter
           label="Бренд"
           summary={getFilterSummary(filters.brands, 'Все бренды')}
@@ -277,6 +279,22 @@ export function FiltersPanel({
           />
         </DropdownFilter>
 
+        </div>
+      </div>
+      <div className={`${isExpanded ? 'mt-4' : 'mt-2'} flex justify-end`}>
+        <button
+          type="button"
+          onClick={() => setIsExpanded((expanded) => !expanded)}
+          aria-expanded={isExpanded}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#D1D5DB] px-3 py-1.5 text-sm font-semibold text-[#4B5563] transition hover:border-[#2563EB] hover:text-[#2563EB]"
+        >
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4" aria-hidden />
+          ) : (
+            <ChevronDown className="h-4 w-4" aria-hidden />
+          )}
+          {isExpanded ? 'Свернуть фильтры' : 'Развернуть фильтры'}
+        </button>
       </div>
     </div>
   );

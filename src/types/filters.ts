@@ -32,11 +32,13 @@ export interface FilterOptions {
   maxDate: string;
 }
 
+export const DEFAULT_BRANDS = ['Квинакс', 'Скайвижн'] as const;
+
 export const DEFAULT_FILTERS: FilterState = {
   periodPreset: 'all',
   dateFrom: null,
   dateTo: null,
-  brands: [],
+  brands: [...DEFAULT_BRANDS],
   timeGrouping: 'month',
   networks: [],
   cities: [],
