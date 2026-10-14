@@ -4,8 +4,12 @@ export interface DataSourceIssue {
   message: string;
 }
 
-export interface DataCompleteness {
-  status: 'preliminary' | 'complete';
+export interface DataReviewNote {
+  network: string;
+  message: string;
+}
+
+export interface DataCompletenessPeriod {
   reportingMonth: string;
   comparisonMonth: string;
   missingNetworks: string[];
@@ -15,4 +19,10 @@ export interface DataCompleteness {
   reportingMonthQuantity: number;
   comparisonMonthQuantity: number;
   sourceIssues?: DataSourceIssue[];
+  reviewNotes?: DataReviewNote[];
+}
+
+export interface DataCompleteness extends DataCompletenessPeriod {
+  status: 'preliminary' | 'complete';
+  periods?: DataCompletenessPeriod[];
 }

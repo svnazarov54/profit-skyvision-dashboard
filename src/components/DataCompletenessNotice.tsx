@@ -1,6 +1,6 @@
-import { ChevronDown, FileWarning, TriangleAlert } from 'lucide-react';
+import { ChevronDown, FileSearch, FileWarning, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
-import type { DataCompleteness } from '../types/dataCompleteness';
+import type { DataCompleteness, DataCompletenessPeriod } from '../types/dataCompleteness';
 
 const MONTH_NAMES = [
   'январь',
@@ -23,13 +23,17 @@ function monthLabel(period: string): string {
   return name && year ? `${name} ${year}` : period;
 }
 
-function networkWord(count: number): string {
-  const mod100 = count % 100;
-  const mod10 = count % 10;
-  if (mod100 >= 11 && mod100 <= 14) return 'сетей';
-  if (mod10 === 1) return 'сеть';
-  if (mod10 >= 2 && mod10 <= 4) return 'сети';
-  return 'сетей';
+function periodTitle(periods: DataCompletenessPeriod[]): string {
+  const labels = periods.map((period) => monthLabel(period.reportingMonth));
+  const years = periods.map((period) => period.reportingMonth.split('-')[0]);
+  if (periods.length === 2 && years[0] === years[1]) {
+    const first = labels[0].split(' ')[0];
+    const second = labels[1].split(' ')[0];
+    return `${first.charAt(0).toUpperCase() + first.slice(1)} и ${second} ${years[0]}`;
+  }
+  return labels
+    .map((label) => label.charAt(0).toUpperCase() + label.slice(1))
+    .join(', ');
 }
 
 interface DataCompletenessNoticeProps {
@@ -40,16 +44,23 @@ export function DataCompletenessNotice({ data }: DataCompletenessNoticeProps) {
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
 
-  if (!data || data.status !== 'preliminary' || data.missingNetworks.length === 0) {
+  if (!data || data.status !== 'preliminary') {
     return null;
   }
 
-  const reportingMonth = monthLabel(data.reportingMonth);
-  const comparisonMonth = monthLabel(data.comparisonMonth);
-  const missingCount = data.missingNetworks.length;
+  const periods = (data.periods?.length ? data.periods : [data]).filter(
+    (period) =>
+      period.missingNetworks.length > 0 ||
+      Boolean(period.sourceIssues?.length) ||
+      Boolean(period.reviewNotes?.length),
+  );
+  if (periods.length === 0) return null;
 
   return (
-    <section className="mb-4 overflow-hidden rounded-xl border border-amber-300 bg-amber-50 text-amber-950 shadow-sm">
+    <section
+      className="mb-4 overflow-hidden rounded-xl border border-amber-300 bg-amber-50 text-amber-950 shadow-sm"
+      aria-live="polite"
+    >
       <button
         type="button"
         className="flex min-h-11 w-full cursor-pointer items-start gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-amber-100/70 focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-inset"
@@ -60,16 +71,21 @@ export function DataCompletenessNotice({ data }: DataCompletenessNoticeProps) {
         <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block font-semibold">
-            {reportingMonth.charAt(0).toUpperCase() + reportingMonth.slice(1)} — предварительные данные
+            {periodTitle(periods)} — данные требуют уточнения
           </span>
           <span className="mt-0.5 block text-sm text-amber-900/80">
-            Отчёты есть по {data.reportedNetworkCount} из {data.comparisonNetworkCount} сетей,
-            представленных за {comparisonMonth}.
+            {periods.map((period, index) => (
+              <span key={period.reportingMonth}>
+                {index > 0 && ' '}
+                {monthLabel(period.reportingMonth).split(' ')[0].replace(/^./, (char) => char.toUpperCase())}:{' '}
+                {period.reportedNetworkCount} из {period.comparisonNetworkCount} сетей.
+              </span>
+            ))}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1 pt-0.5 text-sm font-semibold text-amber-800">
           <span className="hidden sm:inline">
-            {expanded ? 'Скрыть список' : `Показать ${missingCount} ${networkWord(missingCount)}`}
+            {expanded ? 'Скрыть подробности' : 'Показать подробности'}
           </span>
           <ChevronDown
             className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
@@ -80,30 +96,64 @@ export function DataCompletenessNotice({ data }: DataCompletenessNoticeProps) {
 
       {expanded && (
         <div id={detailsId} className="border-t border-amber-200 px-4 py-4">
-          <p className="mb-3 text-sm font-medium">
-            За {reportingMonth} пока нет исходных отчётов от этих сетей:
-          </p>
-          <ul className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            {data.missingNetworks.map((network) => (
-              <li key={network} className="flex items-start gap-2">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-600" aria-hidden />
-                <span>{network}</span>
-              </li>
-            ))}
-          </ul>
-
-          {data.sourceIssues && data.sourceIssues.length > 0 && (
-            <div className="mt-4 border-t border-amber-200 pt-3">
-              {data.sourceIssues.map((issue) => (
-                <p key={`${issue.network}-${issue.period}`} className="flex items-start gap-2 text-sm text-amber-900">
-                  <FileWarning className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  <span>
-                    <span className="font-semibold">{issue.network}:</span> {issue.message}
-                  </span>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {periods.map((period) => (
+              <div key={period.reportingMonth}>
+                <h3 className="text-sm font-semibold">
+                  {monthLabel(period.reportingMonth).replace(/^./, (char) => char.toUpperCase())}
+                </h3>
+                <p className="mt-1 text-sm text-amber-900/80">
+                  Исходники есть по {period.reportedNetworkCount} из{' '}
+                  {period.comparisonNetworkCount} сетей предыдущего месяца.
                 </p>
-              ))}
-            </div>
-          )}
+
+                {period.missingNetworks.length > 0 && (
+                  <>
+                    <p className="mb-2 mt-3 text-sm font-medium">Нет отчёта:</p>
+                    <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+                      {period.missingNetworks.map((network) => (
+                        <li key={network} className="flex items-start gap-2">
+                          <span
+                            className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-600"
+                            aria-hidden
+                          />
+                          <span>{network}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {period.sourceIssues?.map((issue) => (
+                  <p
+                    key={`${issue.network}-${issue.period}`}
+                    className="mt-3 flex items-start gap-2 text-sm text-amber-900"
+                  >
+                    <FileWarning className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    <span>
+                      <span className="font-semibold">{issue.network}:</span> {issue.message}
+                    </span>
+                  </p>
+                ))}
+
+                {period.reviewNotes && period.reviewNotes.length > 0 && (
+                  <div className="mt-4 border-t border-amber-200 pt-3">
+                    <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+                      <FileSearch className="h-4 w-4 shrink-0" aria-hidden />
+                      Нужно проверить полноту SKU
+                    </p>
+                    <ul className="space-y-2 text-sm text-amber-900">
+                      {period.reviewNotes.map((note) => (
+                        <li key={note.network}>
+                          <span className="font-semibold">{note.network}:</span> {note.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>
