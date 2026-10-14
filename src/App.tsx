@@ -2,6 +2,7 @@ import { Lightbulb } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AppTabs, type AppTab } from './components/AppTabs';
 import { DashboardHeader } from './components/DashboardHeader';
+import { DataCompletenessNotice } from './components/DataCompletenessNotice';
 import { FiltersPanel } from './components/FiltersPanel';
 import { KpiCards } from './components/KpiCards';
 import { SalesTrendChart } from './components/SalesTrendChart';
@@ -15,6 +16,7 @@ import { EmptyState } from './components/EmptyState';
 import { useCsvData } from './hooks/useCsvData';
 import { useFilters } from './hooks/useFilters';
 import { useDashboardAnalytics } from './hooks/useDashboardAnalytics';
+import { useDataCompleteness } from './hooks/useDataCompleteness';
 import type { PivotHierarchyOrder, SplitChartDimension } from './types/filters';
 import { getPeriodRange } from './utils/dateUtils';
 import { exportPivotToExcel } from './utils/exportExcel';
@@ -50,6 +52,7 @@ function App() {
   const [pivotOrder, setPivotOrder] = useState<PivotHierarchyOrder>('region-only');
   const [splitDimension, setSplitDimension] = useState<SplitChartDimension>('network');
   const [pivotExpanded, setPivotExpanded] = useState<Set<string>>(new Set());
+  const dataCompleteness = useDataCompleteness();
 
   const analytics = useDashboardAnalytics(records, filters, dateBounds, pivotOrder);
 
@@ -144,6 +147,8 @@ function App() {
         />
 
         <AppTabs active={activeTab} onChange={handleTabChange} />
+
+        <DataCompletenessNotice data={dataCompleteness} />
 
         <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 text-sm text-[#1E40AF] md:text-base">
           <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-[#F59E0B]" aria-hidden />
